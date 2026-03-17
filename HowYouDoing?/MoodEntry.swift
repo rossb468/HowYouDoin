@@ -71,4 +71,30 @@ final class MoodEntry {
         self.moodState = moodState
         self.date = date
     }
+
+    /// Returns a human-readable date label relative to now.
+    /// Includes time when multiple entries share the same day.
+    func dateLabel(in entries: [MoodEntry]) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day], from: date, to: now)
+        let formatter = DateFormatter()
+
+        if calendar.isDateInToday(date) {
+            formatter.dateFormat = "'Today'"
+        } else if calendar.isDateInYesterday(date) {
+            formatter.dateFormat = "'Yesterday'"
+        } else if let days = components.day, days < 7 {
+            formatter.dateFormat = "EEEE"
+        } else {
+            formatter.dateFormat = "MMMM dd"
+        }
+
+        let sameDayCount = entries.filter { calendar.isDate($0.date, inSameDayAs: date) }.count
+        if sameDayCount > 1 {
+            formatter.dateFormat += " 'at' h:mm a"
+        }
+
+        return formatter.string(from: date)
+    }
 }
