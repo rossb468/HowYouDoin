@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 // MARK: - Helpers
 
@@ -33,6 +34,13 @@ private func dateLabel(for entry: MoodEntry, in entries: [MoodEntry]) -> String 
     }
 
     return formatter.string(from: entry.date)
+}
+
+// Simple haptic feedback helper
+private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
+    let generator = UIImpactFeedbackGenerator(style: style)
+    generator.prepare()
+    generator.impactOccurred()
 }
 
 // MARK: - Mood Card
@@ -109,7 +117,8 @@ struct ContentView: View {
                 Text("How You Doin'?")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 16)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 28)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -119,12 +128,10 @@ struct ContentView: View {
             Section {
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
-                        Button {
-                            addMood(.good)
-                        } label: {
+                        Button(action: {}) {
                             VStack(spacing: 8) {
-                                Image(systemName: "hand.thumbsup.fill")
-                                    .font(.system(size: 36))
+                                Text(MoodState.good.emoji)
+                                    .font(.system(size: 48))
                                 Text("Good")
                                     .font(.title2.bold())
                             }
@@ -132,44 +139,98 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, minHeight: 300)
                         }
                         .background(Color.moodGreen)
-                        .onLongPressGesture {
-                            showGoodPopover = true
-                        }
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-//                        .popover(isPresented: $showGoodPopover, arrowEdge: .bottom) {
-//                            VStack(spacing: 0) {
-//                                Button {
-//                                    addMood(.good)
-//                                    showGoodPopover = false
-//                                } label: {
-//                                    Label("Good", systemImage: "hand.thumbsup")
-//                                        .frame(maxWidth: .infinity, alignment: .leading)
-//                                        .padding(.horizontal, 16)
-//                                        .padding(.vertical, 12)
-//                                }
-//                                Divider()
-//                                Button {
-//                                    addMood(.great)
-//                                    showGoodPopover = false
-//                                } label: {
-//                                    Label("Great!", systemImage: "hand.thumbsup.fill")
-//                                        .fontWeight(.semibold)
-//                                        .frame(maxWidth: .infinity, alignment: .leading)
-//                                        .padding(.horizontal, 16)
-//                                        .padding(.vertical, 12)
-//                                }
-//                            }
-//                            .tint(Color.moodGreen)
-//                            .presentationCompactAdaptation(.popover)
-//                        }
-
-                        Button {
-                            addMood(.bad)
+                        .highPriorityGesture(
+                            TapGesture()
+                                .onEnded {
+                                    triggerHaptic()
+                                    addMood(.good)
+                                }
+                        )
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.5)
+                                .onEnded { _ in 
+                                    triggerHaptic(style: .medium)
+                                    showGoodPopover = true 
+                                }
+                        )
+                        .overlay(alignment: .center) {
+                            if showGoodPopover {
+                                ZStack {
+                                    Color.clear
+                                        .contentShape(Rectangle())
+                                        .frame(width: 2000, height: 2000)
+                                        .onTapGesture {
+                                            showGoodPopover = false
+                                        }
+                                    
+                                    VStack(spacing: 6) {
+                                        Button {
+                                            triggerHaptic()
+                                            addMood(.good)
+                                            showGoodPopover = false
+                                        } label: {
+                                            HStack(spacing: 12) {
+                                                Text(MoodState.good.emoji)
+                                                    .font(.system(size: 24))
+                                                Text("Good")
+                                                    .font(.body)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 12)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                    .fill(MoodState.good.color)
+                                            )
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        
+                                        Button {
+                                            triggerHaptic()
+                                            addMood(.great)
+                                            showGoodPopover = false
+                                        } label: {
+                                            HStack(spacing: 12) {
+                                                Text(MoodState.great.emoji)
+                                                    .font(.system(size: 24))
+                                                Text("Great!")
+                                                    .font(.body.weight(.semibold))
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 12)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                    .fill(MoodState.great.color)
+                                            )
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(8)
+                                    .frame(width: 200)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .fill(Color(.systemGray6))
+                                            .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .stroke(.white.opacity(0.2), lineWidth: 1.5)
+                                    )
+                                    .foregroundStyle(.white)
+                                }
+                                .transition(.scale.combined(with: .opacity))
+                            }
                         }
-                        label: {
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showGoodPopover)
+
+                        Button(action: {}) {
                             VStack(spacing: 8) {
-                                Image(systemName: "hand.thumbsdown.fill")
-                                    .font(.system(size: 36))
+                                Text(MoodState.bad.emoji)
+                                    .font(.system(size: 48))
                                 Text("Bad")
                                     .font(.title2.bold())
                             }
@@ -177,49 +238,104 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, minHeight: 300)
                         }
                         .background(Color.moodRed)
-                        .onLongPressGesture {
-                            showBadPopover = true
-                        }
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-//                        .popover(isPresented: $showBadPopover, arrowEdge: .bottom) {
-//                            VStack(spacing: 0) {
-//                                Button {
-//                                    addMood(.bad)
-//                                    showBadPopover = false
-//                                } label: {
-//                                    Label("Bad", systemImage: "hand.thumbsdown")
-//                                        .frame(maxWidth: .infinity, alignment: .leading)
-//                                        .padding(.horizontal, 16)
-//                                        .padding(.vertical, 12)
-//                                }
-//                                Divider()
-//                                Button {
-//                                    addMood(.terrible)
-//                                    showBadPopover = false
-//                                } label: {
-//                                    Label("Terrible", systemImage: "hand.thumbsdown.fill")
-//                                        .fontWeight(.semibold)
-//                                        .frame(maxWidth: .infinity, alignment: .leading)
-//                                        .padding(.horizontal, 16)
-//                                        .padding(.vertical, 12)
-//                                }
-//                            }
-//                            .tint(Color.moodRed)
-//                            .presentationCompactAdaptation(.popover)
-//                        }
-//                        .fullScreenCover(isPresented: $showModal) {
-//                            BlockingModal {
-//                                showModal = false
-//                            }
-//                        }
+                        .highPriorityGesture(
+                            TapGesture()
+                                .onEnded {
+                                    triggerHaptic()
+                                    addMood(.bad)
+                                }
+                        )
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.5)
+                                .onEnded { _ in 
+                                    triggerHaptic(style: .medium)
+                                    showBadPopover = true 
+                                }
+                        )
+                        .overlay(alignment: .center) {
+                            if showBadPopover {
+                                ZStack {
+                                    Color.clear
+                                        .contentShape(Rectangle())
+                                        .frame(width: 2000, height: 2000)
+                                        .onTapGesture {
+                                            showBadPopover = false
+                                        }
+                                    
+                                    VStack(spacing: 6) {
+                                        Button {
+                                            triggerHaptic()
+                                            addMood(.bad)
+                                            showBadPopover = false
+                                        } label: {
+                                            HStack(spacing: 12) {
+                                                Text(MoodState.bad.emoji)
+                                                    .font(.system(size: 24))
+                                                Text("Bad")
+                                                    .font(.body)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 12)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                    .fill(MoodState.bad.color)
+                                            )
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        
+                                        Button {
+                                            triggerHaptic()
+                                            addMood(.terrible)
+                                            showBadPopover = false
+                                        } label: {
+                                            HStack(spacing: 12) {
+                                                Text(MoodState.terrible.emoji)
+                                                    .font(.system(size: 24))
+                                                Text("Terrible")
+                                                    .font(.body.weight(.semibold))
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 12)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                    .fill(MoodState.terrible.color)
+                                            )
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(8)
+                                    .frame(width: 200)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .fill(Color(.systemGray6))
+                                            .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .stroke(.white.opacity(0.2), lineWidth: 1.5)
+                                    )
+                                    .foregroundStyle(.white)
+                                }
+                                .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showBadPopover)
+                    }
+                    .fullScreenCover(isPresented: $showModal) {
+                        BlockingModal {
+                            showModal = false
+                        }
                     }
 
-                    Button {
-                        addMood(.neutral)
-                    } label: {
+                    Button(action: {}) {
                         HStack(spacing: 8) {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 24))
+                            Text(MoodState.neutral.emoji)
+                                .font(.system(size: 28))
                             Text("Meh")
                                 .font(.title2.bold())
                         }
@@ -228,8 +344,19 @@ struct ContentView: View {
                     }
                     .background(Color.moodBlue)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .highPriorityGesture(
+                        TapGesture()
+                            .onEnded {
+                                triggerHaptic()
+                                addMood(.neutral)
+                            }
+                    )
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.5)
+                            .onEnded { _ in }
+                    )
                 }
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
@@ -262,3 +389,4 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .modelContainer(for: MoodEntry.self, inMemory: true)
 }
+
