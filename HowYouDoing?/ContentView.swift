@@ -16,6 +16,12 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showDeleteConfirmation = false
     @State private var showFileImporter = false
+    @AppStorage("appTheme") private var appTheme: String = AppTheme.system.rawValue
+
+    private var selectedTheme: AppTheme {
+        get { AppTheme(rawValue: appTheme) ?? .system }
+        set { appTheme = newValue.rawValue }
+    }
 
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
@@ -52,11 +58,11 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "gearshape.fill")
                                 .font(.system(size: 14))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                                 .frame(width: 34, height: 34)
                                 .background(
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(.white.opacity(0.15))
+                                        .fill(.primary.opacity(0.1))
                                 )
                         }
                         .buttonStyle(.plain)
@@ -131,6 +137,10 @@ struct ContentView: View {
 
                 // Settings panel
                 SettingsView(
+                    selectedTheme: Binding(
+                        get: { AppTheme(rawValue: appTheme) ?? .system },
+                        set: { appTheme = $0.rawValue }
+                    ),
                     onImportCSV: {
                         showFileImporter = true
                     },
@@ -178,11 +188,11 @@ struct ContentView: View {
                 break
             }
         }
+        .preferredColorScheme(selectedTheme.colorScheme)
     }
 }
 
 #Preview {
     ContentView()
-        .preferredColorScheme(.dark)
         .modelContainer(for: MoodEntry.self, inMemory: true)
 }

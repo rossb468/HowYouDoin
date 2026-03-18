@@ -10,17 +10,41 @@ import SwiftData
 // MARK: - App Color Palette
 
 extension Color {
-    // Greens — used for Good / Great
-    static let moodGreen      = Color(red: 0.30, green: 0.78, blue: 0.55)  // #4DC78C
-    static let moodGreenDark  = Color(red: 0.20, green: 0.62, blue: 0.43)  // #339E6E
+    // Greens — used for Good / Great (based on Apple system green)
+    static let moodGreen      = Color(red: 0.20, green: 0.78, blue: 0.35)  // #34C759
+    static let moodGreenDark  = Color(red: 0.10, green: 0.60, blue: 0.25)  // #1A9940
 
-    // Reds — used for Bad / Terrible
-    static let moodRed        = Color(red: 0.92, green: 0.34, blue: 0.38)  // #EB5761
-    static let moodRedDark    = Color(red: 0.76, green: 0.22, blue: 0.27)  // #C23845
+    // Reds — used for Bad / Terrible (based on Apple system red)
+    static let moodRed        = Color(red: 1.00, green: 0.22, blue: 0.24)  // #FF383C
+    static let moodRedDark    = Color(red: 0.85, green: 0.12, blue: 0.15)  // #D91F26
 
-    // Blues — used for Meh / Neutral
-    static let moodBlue       = Color(red: 0.36, green: 0.56, blue: 0.92)  // #5C8FEB
-    static let moodBlueDark   = Color(red: 0.25, green: 0.43, blue: 0.76)  // #406EC2
+    // Blues — used for Meh / Neutral (based on Apple system blue)
+    static let moodBlue       = Color(red: 0.00, green: 0.53, blue: 1.00)  // #0088FF
+    static let moodBlueDark   = Color(red: 0.00, green: 0.40, blue: 0.85)  // #0066D9
+}
+
+// MARK: - App Theme
+
+enum AppTheme: String, CaseIterable {
+    case system
+    case light
+    case dark
+
+    var displayName: String {
+        switch self {
+        case .system: return "System"
+        case .light:  return "Light"
+        case .dark:   return "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light:  return .light
+        case .dark:   return .dark
+        }
+    }
 }
 
 enum MoodState: String, Codable, Equatable {

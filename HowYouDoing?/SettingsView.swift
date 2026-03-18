@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Binding var selectedTheme: AppTheme
     let onImportCSV: () -> Void
     let onDeleteAll: () -> Void
     let onDismiss: () -> Void
@@ -16,7 +17,7 @@ struct SettingsView: View {
             HStack {
                 Text("Settings")
                     .font(.title2.bold())
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
@@ -37,6 +38,37 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 4)
+            .padding(.bottom, 4)
+
+            // Appearance picker
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Appearance")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+
+                HStack(spacing: 8) {
+                    ForEach(AppTheme.allCases, id: \.self) { theme in
+                        Button {
+                            triggerHaptic()
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedTheme = theme
+                            }
+                        } label: {
+                            Text(theme.displayName)
+                                .font(.subheadline.weight(.medium))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .foregroundStyle(selectedTheme == theme ? .white : .primary)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(selectedTheme == theme ? Color.moodBlue : Color(.systemGray5))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
             .padding(.bottom, 4)
 
             // Import from CSV
@@ -90,7 +122,7 @@ struct SettingsView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.2), lineWidth: 1.5)
+                .stroke(.primary.opacity(0.15), lineWidth: 1.5)
         )
     }
 }
