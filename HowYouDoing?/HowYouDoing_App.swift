@@ -10,10 +10,30 @@ import SwiftData
 
 @main
 struct HowYouDoing_App: App {
+    let modelContainer: ModelContainer
+
+    init() {
+        // Ensure the Application Support directory exists before SwiftData
+        // attempts to create its store file, avoiding a slow recovery path
+        // on first launch on physical devices.
+        let fileManager = FileManager.default
+        if let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            if !fileManager.fileExists(atPath: appSupport.path()) {
+                try? fileManager.createDirectory(at: appSupport, withIntermediateDirectories: true)
+            }
+        }
+
+        do {
+            modelContainer = try ModelContainer(for: MoodEntry.self)
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: MoodEntry.self)
+        .modelContainer(modelContainer)
     }
 }

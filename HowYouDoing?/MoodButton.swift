@@ -21,10 +21,7 @@ private struct MoodPopoverOption: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(mood.color)
-            )
+            .glassEffect(.regular.tint(mood.color).interactive(), in: .rect(cornerRadius: 10))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -78,6 +75,7 @@ struct MoodButton: View {
     let onSelect: (MoodState) -> Void
 
     @State private var showPopover = false
+    @State private var isPressed = false
 
     /// Convenience for buttons that have no long-press popover (e.g. Meh).
     init(
@@ -114,9 +112,12 @@ struct MoodButton: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, minHeight: minHeight)
+            .contentShape(Rectangle())
         }
-        .background(primaryMood.color)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassEffect(.regular.tint(primaryMood.color).interactive(), in: .rect(cornerRadius: 12))
+        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .opacity(isPressed ? 0.85 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isPressed)
         .highPriorityGesture(
             TapGesture()
                 .onEnded {
@@ -131,6 +132,11 @@ struct MoodButton: View {
                     triggerHaptic(style: .medium)
                     showPopover = true
                 }
+        )
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
         )
         .overlay(alignment: .center) {
             if showPopover {
