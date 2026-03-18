@@ -17,19 +17,16 @@ struct MoodCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.moodState.displayString)
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
 
                 Text(entry.dateLabel(in: entries))
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(entry.moodState.color)
-        )
+        .glassEffect(.regular.tint(entry.moodState.color), in: .rect(cornerRadius: 14))
     }
 }

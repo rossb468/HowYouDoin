@@ -27,15 +27,8 @@ struct SettingsView: View {
                 } label: {
                     Text("Done")
                         .font(.body.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.moodGreen)
-                        )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass(.regular.tint(.moodGreen)))
             }
             .padding(.horizontal, 4)
             .padding(.bottom, 4)
@@ -59,13 +52,8 @@ struct SettingsView: View {
                                 .font(.subheadline.weight(.medium))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 10)
-                                .foregroundStyle(selectedTheme == theme ? .white : .primary)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(selectedTheme == theme ? Color.moodBlue : Color(.systemGray5))
-                                )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.glass(selectedTheme == theme ? .regular.tint(.moodBlue) : .regular))
                     }
                 }
             }
@@ -83,15 +71,10 @@ struct SettingsView: View {
                         .font(.body.weight(.semibold))
                     Spacer()
                 }
-                .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.moodBlue)
-                )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass(.regular.tint(.moodBlue)))
 
             // Delete All Moods
             Button {
@@ -105,24 +88,12 @@ struct SettingsView: View {
                         .font(.body.weight(.semibold))
                     Spacer()
                 }
-                .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.moodRed)
-                )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass(.regular.tint(.moodRed)))
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.systemGray6))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.primary.opacity(0.15), lineWidth: 1.5)
-        )
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 }

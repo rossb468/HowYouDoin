@@ -58,14 +58,9 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "gearshape.fill")
                                 .font(.system(size: 14))
-                                .foregroundStyle(.primary)
                                 .frame(width: 34, height: 34)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(.primary.opacity(0.1))
-                                )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.glass)
                         .padding(.top, 12)
                         .padding(.trailing, 16)
                     }
@@ -76,26 +71,28 @@ struct ContentView: View {
 
                 // Mood buttons
                 Section {
-                    VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            MoodButton(
-                                primaryMood: .good,
-                                popoverOptions: [.good, .great],
-                                onSelect: addMood
-                            )
+                    GlassEffectContainer(spacing: 8) {
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                MoodButton(
+                                    primaryMood: .good,
+                                    popoverOptions: [.good, .great],
+                                    onSelect: addMood
+                                )
+
+                                MoodButton(
+                                    primaryMood: .bad,
+                                    popoverOptions: [.bad, .terrible],
+                                    onSelect: addMood
+                                )
+                            }
 
                             MoodButton(
-                                primaryMood: .bad,
-                                popoverOptions: [.bad, .terrible],
+                                mood: .neutral,
+                                minHeight: 100,
                                 onSelect: addMood
                             )
                         }
-
-                        MoodButton(
-                            mood: .neutral,
-                            minHeight: 100,
-                            onSelect: addMood
-                        )
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
                     .listRowBackground(Color.clear)
@@ -122,6 +119,7 @@ struct ContentView: View {
                 }
             }
             .listStyle(.plain)
+            .scrollEdgeEffectStyle(.soft, for: .all)
 
             // Settings slide-over from top
             if showSettings {

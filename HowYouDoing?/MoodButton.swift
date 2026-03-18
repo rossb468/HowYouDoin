@@ -51,16 +51,9 @@ private struct MoodPopover: View {
             }
             .padding(8)
             .frame(width: 200)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.systemGray6))
-                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(.primary.opacity(0.15), lineWidth: 1.5)
-            )
-            .foregroundStyle(.white)
+            .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
+            .foregroundStyle(.primary)
         }
         .transition(.scale.combined(with: .opacity))
     }
