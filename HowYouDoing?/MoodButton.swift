@@ -58,7 +58,7 @@ private struct MoodPopover: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(.white.opacity(0.2), lineWidth: 1.5)
+                    .stroke(.primary.opacity(0.15), lineWidth: 1.5)
             )
             .foregroundStyle(.white)
         }
