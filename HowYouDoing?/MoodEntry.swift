@@ -60,6 +60,18 @@ enum MoodState: String, Codable, Equatable {
         case .neutral:  return .moodBlue
         }
     }
+
+    /// Maps CSV mood strings (e.g. Daylio export) to MoodState.
+    static func fromCSV(_ value: String) -> MoodState? {
+        switch value.lowercased().trimmingCharacters(in: .whitespaces) {
+        case "rad":       return .great
+        case "good":      return .good
+        case "meh":       return .neutral
+        case "bad":       return .bad
+        case "awful":     return .terrible
+        default:          return nil
+        }
+    }
 }
 
 @Model
