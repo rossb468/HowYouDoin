@@ -11,6 +11,8 @@ struct SettingsView: View {
     let onDeleteAll: () -> Void
     let onDismiss: () -> Void
 
+    @State private var reminderEnabled = false
+
     var body: some View {
         VStack(spacing: 8) {
             // Header
@@ -59,6 +61,35 @@ struct SettingsView: View {
             }
             .padding(.bottom, 4)
 
+            // Daily Reminder
+            Button {
+                triggerHaptic()
+                Task {
+                    if reminderEnabled {
+                        NotificationManager.cancelReminder()
+                        reminderEnabled = false
+                    } else {
+                        let scheduled = await NotificationManager.requestPermissionAndSchedule()
+                        reminderEnabled = scheduled
+                    }
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: reminderEnabled ? "bell.fill" : "bell.slash")
+                        .font(.system(size: 20))
+                    Text("Daily Reminder (8 PM)")
+                        .font(.body.weight(.semibold))
+                    Spacer()
+                    Text(reminderEnabled ? "On" : "Off")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+            .buttonStyle(.glass(reminderEnabled ? .regular.tint(.moodGreen) : .regular))
+            .padding(.bottom, 4)
+
             // Import from CSV
             Button {
                 triggerHaptic()
@@ -95,5 +126,8 @@ struct SettingsView: View {
         }
         .padding(12)
         .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .task {
+            reminderEnabled = await NotificationManager.isReminderScheduled()
+        }
     }
 }
