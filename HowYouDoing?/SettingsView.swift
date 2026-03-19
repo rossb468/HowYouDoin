@@ -87,8 +87,10 @@ struct InlineSettingsContent: View {
 }
 
 /// Inline reminders section styled to match inline settings.
+/// Uses a standard List with swipe-to-delete and tap-to-edit.
 private struct InlineRemindersSection: View {
     @Binding var reminders: [Reminder]
+    @State private var editingReminder: Reminder?
     @State private var showAddSheet = false
 
     var body: some View {
@@ -101,44 +103,27 @@ private struct InlineRemindersSection: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 6)
 
-            VStack(spacing: 0) {
-                ForEach(Array(reminders.enumerated()), id: \.element.id) { index, reminder in
-                    if index > 0 {
-                        Divider()
-                            .padding(.leading, 16)
-                    }
-                    HStack {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(reminder.timeString)
-                                    .font(.body)
-                                Text(reminder.body)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        } icon: {
-                            Image(systemName: "bell.fill")
-                                .foregroundStyle(Color.moodGreen)
-                        }
-                        Spacer()
-                        Button {
+            List {
+                ForEach(reminders) { reminder in
+                    ReminderRow(reminder: reminder)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
                             triggerHaptic()
-                            reminders.remove(at: index)
-                            NotificationManager.scheduleAll(reminders)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
+                            editingReminder = reminder
                         }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                }
-
-                if !reminders.isEmpty {
-                    Divider()
-                        .padding(.leading, 16)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                triggerHaptic()
+                                if let index = reminders.firstIndex(where: { $0.id == reminder.id }) {
+                                    reminders.remove(at: index)
+                                    NotificationManager.scheduleAll(reminders)
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                 }
 
                 Button {
@@ -146,36 +131,115 @@ private struct InlineRemindersSection: View {
                     showAddSheet = true
                 } label: {
                     Label("Add Reminder", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
                 }
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollDisabled(true)
+            .frame(height: CGFloat(max(reminders.count, 0)) * 54 + 44)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
         }
         .sheet(isPresented: $showAddSheet) {
-            AddReminderSheet { newReminder in
+            ReminderEditorSheet(mode: .add) { newReminder in
                 reminders.append(newReminder)
                 NotificationManager.scheduleAll(reminders)
+            }
+        }
+        .sheet(item: $editingReminder) { reminder in
+            ReminderEditorSheet(mode: .edit(reminder)) { updated in
+                if let index = reminders.firstIndex(where: { $0.id == updated.id }) {
+                    reminders[index] = updated
+                    NotificationManager.scheduleAll(reminders)
+                }
             }
         }
     }
 }
 
-// MARK: - Add Reminder Sheet (shared)
+// MARK: - Reminder Row
 
-struct AddReminderSheet: View {
+private struct ReminderRow: View {
+    let reminder: Reminder
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: reminder.isEnabled ? "bell.fill" : "bell.slash.fill")
+                .foregroundStyle(reminder.isEnabled ? Color.moodGreen : .secondary)
+                .font(.system(size: 16))
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(reminder.timeString)
+                    .font(.body)
+                Text(reminder.body)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Reminder Editor Sheet (Add & Edit)
+
+struct ReminderEditorSheet: View {
+    enum Mode {
+        case add
+        case edit(Reminder)
+
+        var title: String {
+            switch self {
+            case .add: return "New Reminder"
+            case .edit: return "Edit Reminder"
+            }
+        }
+    }
+
+    let mode: Mode
     let onSave: (Reminder) -> Void
+
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedTime = {
-        var components = DateComponents()
-        components.hour = 12
-        components.minute = 0
-        return Calendar.current.date(from: components) ?? Date()
-    }()
-    @State private var bodyText = "Time to check in with yourself."
+    @State private var selectedTime: Date
+    @State private var bodyText: String
+    @State private var isEnabled: Bool
+    private let existingID: UUID?
+
+    init(mode: Mode, onSave: @escaping (Reminder) -> Void) {
+        self.mode = mode
+        self.onSave = onSave
+
+        switch mode {
+        case .add:
+            var components = DateComponents()
+            components.hour = 12
+            components.minute = 0
+            let noon = Calendar.current.date(from: components) ?? Date()
+            _selectedTime = State(initialValue: noon)
+            _bodyText = State(initialValue: "Time to check in with yourself.")
+            _isEnabled = State(initialValue: true)
+            existingID = nil
+
+        case .edit(let reminder):
+            var components = DateComponents()
+            components.hour = reminder.hour
+            components.minute = reminder.minute
+            let date = Calendar.current.date(from: components) ?? Date()
+            _selectedTime = State(initialValue: date)
+            _bodyText = State(initialValue: reminder.body)
+            _isEnabled = State(initialValue: reminder.isEnabled)
+            existingID = reminder.id
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -187,8 +251,12 @@ struct AddReminderSheet: View {
                 Section {
                     TextField("Message", text: $bodyText)
                 }
+
+                Section {
+                    Toggle("Enabled", isOn: $isEnabled)
+                }
             }
-            .navigationTitle("New Reminder")
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -198,12 +266,16 @@ struct AddReminderSheet: View {
                     Button("Save") {
                         triggerHaptic()
                         let components = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
-                        let reminder = Reminder(
+                        var reminder = Reminder(
                             hour: components.hour ?? 12,
                             minute: components.minute ?? 0,
                             title: "How You Doin'?",
-                            body: bodyText.isEmpty ? "Time to check in with yourself." : bodyText
+                            body: bodyText.isEmpty ? "Time to check in with yourself." : bodyText,
+                            isEnabled: isEnabled
                         )
+                        if let existingID {
+                            reminder.id = existingID
+                        }
                         onSave(reminder)
                         dismiss()
                     }
