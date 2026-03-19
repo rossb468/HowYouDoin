@@ -11,7 +11,14 @@ struct SettingsView: View {
     let onDeleteAll: () -> Void
     let onDismiss: () -> Void
 
-    @State private var reminderEnabled = false
+    @AppStorage("reminders") private var remindersJSON: String = "[]"
+
+    private var remindersBinding: Binding<[Reminder]> {
+        Binding(
+            get: { [Reminder].fromJSON(remindersJSON) },
+            set: { remindersJSON = $0.jsonString }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -61,34 +68,9 @@ struct SettingsView: View {
             }
             .padding(.bottom, 4)
 
-            // Daily Reminder
-            Button {
-                triggerHaptic()
-                Task {
-                    if reminderEnabled {
-                        NotificationManager.cancelReminder()
-                        reminderEnabled = false
-                    } else {
-                        let scheduled = await NotificationManager.requestPermissionAndSchedule()
-                        reminderEnabled = scheduled
-                    }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: reminderEnabled ? "bell.fill" : "bell.slash")
-                        .font(.system(size: 20))
-                    Text("Daily Reminder (8 PM)")
-                        .font(.body.weight(.semibold))
-                    Spacer()
-                    Text(reminderEnabled ? "On" : "Off")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-            }
-            .buttonStyle(.glass(reminderEnabled ? .regular.tint(.moodGreen) : .regular))
-            .padding(.bottom, 4)
+            // Reminders
+            RemindersView(reminders: remindersBinding)
+                .padding(.bottom, 4)
 
             // Import from CSV
             Button {
@@ -126,8 +108,5 @@ struct SettingsView: View {
         }
         .padding(12)
         .glassEffect(.regular, in: .rect(cornerRadius: 16))
-        .task {
-            reminderEnabled = await NotificationManager.isReminderScheduled()
-        }
     }
 }

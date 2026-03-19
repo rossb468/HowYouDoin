@@ -7,6 +7,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("reminders") private var remindersJSON: String = "[]"
     @State private var showPermissionDeniedAlert = false
 
     var body: some View {
@@ -21,7 +22,7 @@ struct WelcomeView: View {
                 Text("How You Doin'?")
                     .font(.largeTitle.bold())
 
-                Text("Track your mood every day.\nWe can remind you each evening.")
+                Text("Track your mood every day.\nWe can remind you morning and evening.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -34,8 +35,9 @@ struct WelcomeView: View {
                 Button {
                     triggerHaptic()
                     Task {
-                        let scheduled = await NotificationManager.requestPermissionAndSchedule()
-                        if scheduled {
+                        let scheduled = await NotificationManager.requestPermissionAndScheduleDefaults()
+                        if !scheduled.isEmpty {
+                            remindersJSON = scheduled.jsonString
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                                 hasCompletedOnboarding = true
                             }
@@ -47,7 +49,7 @@ struct WelcomeView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "bell.fill")
                             .font(.system(size: 18))
-                        Text("Remind Me at 8 PM")
+                        Text("Set Up Reminders")
                             .font(.body.weight(.semibold))
                     }
                     .foregroundStyle(.white)
