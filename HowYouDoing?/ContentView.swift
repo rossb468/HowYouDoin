@@ -13,9 +13,13 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
 
-    @State private var showSettings = false
     @State private var showDeleteConfirmation = false
     @State private var showFileImporter = false
+    @State private var settingsOpen = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var settingsHeight: CGFloat = 0
+    @State private var isAtTop = true
+
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
     }
@@ -30,97 +34,100 @@ struct ContentView: View {
         }
     }
 
+    /// Current translation: 0 when closed, settingsHeight when open.
+    private var currentOffset: CGFloat {
+        let base: CGFloat = settingsOpen ? settingsHeight : 0
+        return base + dragOffset
+    }
+
     var body: some View {
-        List {
-            // Header with title and gear button on separate rows
-            Section {
-                HStack {
-                    Spacer()
-                    Button {
-                        triggerHaptic()
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 14))
-                            .frame(width: 34, height: 34)
-                    }
-                    .buttonStyle(.glass)
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-
-                Text("How You Doin'?")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 12)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+        ZStack(alignment: .top) {
+            // Settings panel positioned above the visible area
+            InlineSettingsContent(
+                onImportCSV: { showFileImporter = true },
+                onDeleteAll: { showDeleteConfirmation = true }
+            )
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                settingsHeight = height
             }
+            .offset(y: currentOffset - settingsHeight)
+            .clipped()
 
-            // Mood buttons
-            Section {
-                GlassEffectContainer(spacing: 8) {
-                    VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            MoodButton(
-                                primaryMood: .good,
-                                popoverOptions: [.good, .great],
-                                onSelect: addMood
-                            )
+            // Main content
+            List {
+                // Title
+                Section {
+                    Text("How You Doin'?")
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 12)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+
+                // Mood buttons
+                Section {
+                    GlassEffectContainer(spacing: 8) {
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                MoodButton(
+                                    primaryMood: .good,
+                                    popoverOptions: [.good, .great],
+                                    onSelect: addMood
+                                )
+
+                                MoodButton(
+                                    primaryMood: .bad,
+                                    popoverOptions: [.bad, .terrible],
+                                    onSelect: addMood
+                                )
+                            }
 
                             MoodButton(
-                                primaryMood: .bad,
-                                popoverOptions: [.bad, .terrible],
+                                mood: .neutral,
+                                minHeight: 100,
                                 onSelect: addMood
                             )
                         }
-
-                        MoodButton(
-                            mood: .neutral,
-                            minHeight: 100,
-                            onSelect: addMood
-                        )
                     }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
 
-            // Mood history
-            if !moodEntries.isEmpty {
-                Section {
-                    ForEach(moodEntries) { entry in
-                        MoodCardView(entry: entry, entries: moodEntries)
-                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    deleteMood(entry)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                // Mood history
+                if !moodEntries.isEmpty {
+                    Section {
+                        ForEach(moodEntries) { entry in
+                            MoodCardView(entry: entry, entries: moodEntries)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        deleteMood(entry)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
-                            }
+                        }
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollEdgeEffectStyle(.soft, for: .all)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y <= geometry.contentInsets.top + 1
+            } action: { _, atTop in
+                isAtTop = atTop
+            }
+            .offset(y: currentOffset)
         }
-        .listStyle(.plain)
-        .scrollEdgeEffectStyle(.soft, for: .all)
-        .sheet(isPresented: $showSettings) {
-            SettingsView(
-                onImportCSV: {
-                    showFileImporter = true
-                },
-                onDeleteAll: {
-                    showDeleteConfirmation = true
-                }
-            )
-        }
+        .simultaneousGesture(settingsDragGesture)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete All Moods", role: .destructive) {
@@ -143,7 +150,49 @@ struct ContentView: View {
                 break
             }
         }
+    }
 
+    /// Applies a rubber-band curve: moves quickly at first, then
+    /// increasingly resists as the drag grows relative to the limit.
+    private func rubberBand(_ offset: CGFloat, limit: CGFloat) -> CGFloat {
+        let clamped = max(offset, 0)
+        let ratio = clamped / limit
+        // Logarithmic decay gives a natural rubber-band feel
+        return limit * (1 - 1 / (ratio * 0.55 + 1))
+    }
+
+    private var settingsDragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                let translation = value.translation.height
+                if settingsOpen {
+                    // When open, only allow dragging up (negative)
+                    dragOffset = min(0, translation)
+                } else if isAtTop && translation > 0 {
+                    // When closed, only respond if list is at the top
+                    let raw = max(0, translation)
+                    dragOffset = rubberBand(raw, limit: settingsHeight)
+                }
+            }
+            .onEnded { value in
+                let velocity = value.predictedEndTranslation.height - value.translation.height
+                let threshold = settingsHeight * 0.45
+
+                withAnimation(.spring(duration: 0.35, bounce: 0.0)) {
+                    if settingsOpen {
+                        // Snap closed if dragged up enough or flicked up
+                        if -value.translation.height > threshold || velocity < -100 {
+                            settingsOpen = false
+                        }
+                    } else if isAtTop {
+                        // Snap open only if at top and the visual offset passed the threshold
+                        if dragOffset > threshold || velocity > 200 {
+                            settingsOpen = true
+                        }
+                    }
+                    dragOffset = 0
+                }
+            }
     }
 }
 
