@@ -53,7 +53,7 @@ private struct MoodPopover: View {
             .frame(width: 200)
             .glassEffect(.regular, in: .rect(cornerRadius: 16))
             .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
-            .foregroundStyle(.primary)
+            .foregroundStyle(.white)
         }
         .transition(.scale.combined(with: .opacity))
     }

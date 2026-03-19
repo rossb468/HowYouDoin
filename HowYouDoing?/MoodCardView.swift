@@ -17,11 +17,11 @@ struct MoodCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.moodState.displayString)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
 
                 Text(entry.dateLabel(in: entries))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
 
             Spacer()
