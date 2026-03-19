@@ -16,13 +16,6 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showDeleteConfirmation = false
     @State private var showFileImporter = false
-    @AppStorage("appTheme") private var appTheme: String = AppTheme.system.rawValue
-
-    private var selectedTheme: AppTheme {
-        get { AppTheme(rawValue: appTheme) ?? .system }
-        set { appTheme = newValue.rawValue }
-    }
-
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
     }
@@ -38,133 +31,100 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Main content
-            List {
-                // Header with gear icon
-                Section {
-                    ZStack(alignment: .topTrailing) {
-                        Text("How You Doin'?")
-                            .font(.system(size: 34, weight: .heavy, design: .rounded))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .multilineTextAlignment(.center)
-                            .padding(.vertical, 28)
-
-                        Button {
-                            triggerHaptic()
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                showSettings.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 14))
-                                .frame(width: 34, height: 34)
-                        }
-                        .buttonStyle(.glass)
-                        .padding(.top, 12)
-                        .padding(.trailing, 16)
+        List {
+            // Header with title and gear button on separate rows
+            Section {
+                HStack {
+                    Spacer()
+                    Button {
+                        triggerHaptic()
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 14))
+                            .frame(width: 34, height: 34)
                     }
-                    .listRowInsets(EdgeInsets())
+                    .buttonStyle(.glass)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
+                Text("How You Doin'?")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 12)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                }
+            }
 
-                // Mood buttons
-                Section {
-                    GlassEffectContainer(spacing: 8) {
-                        VStack(spacing: 12) {
-                            HStack(spacing: 12) {
-                                MoodButton(
-                                    primaryMood: .good,
-                                    popoverOptions: [.good, .great],
-                                    onSelect: addMood
-                                )
-
-                                MoodButton(
-                                    primaryMood: .bad,
-                                    popoverOptions: [.bad, .terrible],
-                                    onSelect: addMood
-                                )
-                            }
+            // Mood buttons
+            Section {
+                GlassEffectContainer(spacing: 8) {
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            MoodButton(
+                                primaryMood: .good,
+                                popoverOptions: [.good, .great],
+                                onSelect: addMood
+                            )
 
                             MoodButton(
-                                mood: .neutral,
-                                minHeight: 100,
+                                primaryMood: .bad,
+                                popoverOptions: [.bad, .terrible],
                                 onSelect: addMood
                             )
                         }
-                    }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
 
-                // Mood history
-                if !moodEntries.isEmpty {
-                    Section {
-                        ForEach(moodEntries) { entry in
-                            MoodCardView(entry: entry, entries: moodEntries)
-                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        deleteMood(entry)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                        }
+                        MoodButton(
+                            mood: .neutral,
+                            minHeight: 100,
+                            onSelect: addMood
+                        )
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
-            .listStyle(.plain)
-            .scrollEdgeEffectStyle(.soft, for: .all)
 
-            // Settings slide-over from top
-            if showSettings {
-                // Dimmed backdrop
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showSettings = false
-                        }
+            // Mood history
+            if !moodEntries.isEmpty {
+                Section {
+                    ForEach(moodEntries) { entry in
+                        MoodCardView(entry: entry, entries: moodEntries)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    deleteMood(entry)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                     }
-                    .transition(.opacity)
-
-                // Settings panel
-                SettingsView(
-                    selectedTheme: Binding(
-                        get: { AppTheme(rawValue: appTheme) ?? .system },
-                        set: { appTheme = $0.rawValue }
-                    ),
-                    onImportCSV: {
-                        showFileImporter = true
-                    },
-                    onDeleteAll: {
-                        showDeleteConfirmation = true
-                    },
-                    onDismiss: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showSettings = false
-                        }
-                    }
-                )
-                .shadow(color: .black.opacity(0.4), radius: 30, y: 12)
-                .padding(.horizontal, 16)
-                .padding(.top, 2)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showSettings)
+        .listStyle(.plain)
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .sheet(isPresented: $showSettings) {
+            SettingsView(
+                onImportCSV: {
+                    showFileImporter = true
+                },
+                onDeleteAll: {
+                    showDeleteConfirmation = true
+                }
+            )
+        }
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete All Moods", role: .destructive) {
                 deleteAllMoods()
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                    showSettings = false
-                }
             }
         } message: {
             Text("This will permanently delete all your mood entries. This cannot be undone.")
@@ -178,15 +138,12 @@ struct ContentView: View {
             case .success(let urls):
                 if let url = urls.first {
                     CSVImporter.importCSV(from: url, into: modelContext)
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                        showSettings = false
-                    }
                 }
             case .failure:
                 break
             }
         }
-        .preferredColorScheme(selectedTheme.colorScheme)
+
     }
 }
 

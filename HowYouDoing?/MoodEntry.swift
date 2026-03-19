@@ -18,29 +18,6 @@ extension Color {
     static let moodBlueDark   = Color(red: 0.00, green: 0.40, blue: 0.85)  // #0066D9
 }
 
-// MARK: - App Theme
-
-enum AppTheme: String, CaseIterable {
-    case system
-    case light
-    case dark
-
-    var displayName: String {
-        switch self {
-        case .system: return "System"
-        case .light:  return "Light"
-        case .dark:   return "Dark"
-        }
-    }
-
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: return nil
-        case .light:  return .light
-        case .dark:   return .dark
-        }
-    }
-}
 
 enum MoodState: String, Codable, Equatable {
     case great
