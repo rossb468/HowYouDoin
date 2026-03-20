@@ -42,7 +42,7 @@ struct InlineSettingsContent: View {
             // Calendar section
             VStack(spacing: 0) {
                 Text("Calendar")
-                    .font(.footnote)
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,6 +51,7 @@ struct InlineSettingsContent: View {
 
                 HStack {
                     Text("Week Starts On")
+                        .font(.body)
                     Spacer()
                     Picker("Week Starts On", selection: $weekStartDay) {
                         Text("Sunday").tag(1)
@@ -63,8 +64,8 @@ struct InlineSettingsContent: View {
                     }
                     .labelsHidden()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .padding(.horizontal, 16)
             }
@@ -73,7 +74,7 @@ struct InlineSettingsContent: View {
             // Data section
             VStack(spacing: 0) {
                 Text("Data")
-                    .font(.footnote)
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -86,22 +87,24 @@ struct InlineSettingsContent: View {
                         onImportCSV()
                     } label: {
                         Label("Import from CSV", systemImage: "square.and.arrow.down")
+                            .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
                     }
 
                     Divider()
-                        .padding(.leading, 16)
+                        .padding(.leading, 18)
 
                     Button(role: .destructive) {
                         triggerHaptic()
                         onDeleteAll()
                     } label: {
                         Label("Delete All Moods", systemImage: "trash")
+                            .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
                     }
                 }
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -128,7 +131,7 @@ private struct InlineRemindersSection: View {
     var body: some View {
         VStack(spacing: 0) {
             Text("Reminders")
-                .font(.footnote)
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -163,13 +166,14 @@ private struct InlineRemindersSection: View {
                     showAddSheet = true
                 } label: {
                     Label("Add Reminder", systemImage: "plus.circle.fill")
+                        .font(.body)
                 }
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollDisabled(true)
-            .frame(height: CGFloat(max(reminders.count, 0)) * 54 + 44)
+            .frame(height: CGFloat(max(reminders.count, 0)) * 60 + 48)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .padding(.horizontal, 16)
         }
@@ -196,17 +200,17 @@ private struct ReminderRow: View {
     let reminder: Reminder
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: reminder.isEnabled ? "bell.fill" : "bell.slash.fill")
                 .foregroundStyle(reminder.isEnabled ? Color.moodGreen : .secondary)
-                .font(.system(size: 16))
-                .frame(width: 24)
+                .font(.system(size: 18))
+                .frame(width: 26)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(reminder.timeString)
-                    .font(.body)
+                    .font(.body.weight(.medium))
                 Text(reminder.body)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -214,10 +218,10 @@ private struct ReminderRow: View {
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
 }
 
