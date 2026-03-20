@@ -13,12 +13,18 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
 
+    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
+
     @State private var showDeleteConfirmation = false
     @State private var showFileImporter = false
     @State private var settingsOpen = false
     @State private var dragOffset: CGFloat = 0
     @State private var settingsHeight: CGFloat = 0
     @State private var isAtTop = true
+
+    private var timelineRows: [TimelineRow] {
+        buildTimeline(from: Array(moodEntries), weekStartDay: weekStartDay)
+    }
 
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
@@ -99,21 +105,44 @@ struct ContentView: View {
                     .listRowSeparator(.hidden)
                 }
 
-                // Mood history
+                // Mood history with day grouping and dividers
                 if !moodEntries.isEmpty {
-                    Section {
-                        ForEach(moodEntries) { entry in
-                            MoodCardView(entry: entry, entries: moodEntries)
-                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                    ForEach(timelineRows) { row in
+                        switch row {
+                        case .moodEntry(let entry, let position, let dayLabel, let nextColor):
+                            MoodEntryRow(
+                                entry: entry,
+                                position: position,
+                                dayLabel: dayLabel,
+                                nextColor: nextColor
+                            )
+                            .listRowInsets(EdgeInsets(
+                                top: position == .sole || position == .first ? 5 : 0,
+                                leading: 16,
+                                bottom: position == .sole || position == .last ? 5 : 0,
+                                trailing: 16
+                            ))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    deleteMood(entry)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+
+                        case .monthDivider(let label, _):
+                            MonthDividerView(label: label)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        deleteMood(entry)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
+
+                        case .weekDivider:
+                            WeekDividerView()
+                                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                         }
                     }
                 }

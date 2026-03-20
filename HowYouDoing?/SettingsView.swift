@@ -12,6 +12,7 @@ struct InlineSettingsContent: View {
     let onDeleteAll: () -> Void
 
     @AppStorage("reminders") private var remindersJSON: String = "[]"
+    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
 
     private var reminders: Binding<[Reminder]> {
         Binding(
@@ -37,6 +38,37 @@ struct InlineSettingsContent: View {
             // Reminders section
             InlineRemindersSection(reminders: reminders)
                 .padding(.bottom, 12)
+
+            // Calendar section
+            VStack(spacing: 0) {
+                Text("Calendar")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+
+                HStack {
+                    Text("Week Starts On")
+                    Spacer()
+                    Picker("Week Starts On", selection: $weekStartDay) {
+                        Text("Sunday").tag(1)
+                        Text("Monday").tag(2)
+                        Text("Tuesday").tag(3)
+                        Text("Wednesday").tag(4)
+                        Text("Thursday").tag(5)
+                        Text("Friday").tag(6)
+                        Text("Saturday").tag(7)
+                    }
+                    .labelsHidden()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 12)
 
             // Data section
             VStack(spacing: 0) {

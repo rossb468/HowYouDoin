@@ -80,6 +80,34 @@ final class MoodEntry {
         self.date = date
     }
 
+    /// Formatted time string (e.g. "2:30 PM").
+    var timeLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
+    }
+
+    /// Returns a human-readable day label relative to now (no time component).
+    static func dayLabel(for date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day], from: date, to: now)
+
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if let days = components.day, days < 7 {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE"
+            return formatter.string(from: date)
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM dd"
+            return formatter.string(from: date)
+        }
+    }
+
     /// Returns a human-readable date label relative to now.
     /// Includes time when multiple entries share the same day.
     func dateLabel(in entries: [MoodEntry]) -> String {
