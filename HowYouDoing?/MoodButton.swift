@@ -21,7 +21,7 @@ private struct MoodPopoverOption: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .glassEffect(.regular.tint(mood.color).interactive(), in: .rect(cornerRadius: 10))
+            .glassEffect(.regular.tint(mood.color).interactive(), in: .rect(cornerRadius: 20))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -51,7 +51,7 @@ private struct MoodPopover: View {
             }
             .padding(8)
             .frame(width: 200)
-            .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            .glassEffect(.regular, in: .rect(cornerRadius: 20))
             .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
             .foregroundStyle(.white)
         }
@@ -107,7 +107,7 @@ struct MoodButton: View {
             .frame(maxWidth: .infinity, minHeight: minHeight)
             .contentShape(Rectangle())
         }
-        .glassEffect(.regular.tint(primaryMood.color).interactive(), in: .rect(cornerRadius: 12))
+        .glassEffect(.regular.tint(primaryMood.color).interactive(), in: .rect(cornerRadius: 20))
         .scaleEffect(isPressed ? 0.96 : 1.0)
         .opacity(isPressed ? 0.85 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isPressed)

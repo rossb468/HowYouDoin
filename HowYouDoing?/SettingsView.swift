@@ -65,7 +65,7 @@ struct InlineSettingsContent: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .padding(.horizontal, 16)
             }
             .padding(.bottom, 12)
@@ -104,7 +104,7 @@ struct InlineSettingsContent: View {
                             .padding(.vertical, 12)
                     }
                 }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .padding(.horizontal, 16)
             }
 
@@ -170,7 +170,7 @@ private struct InlineRemindersSection: View {
             .listStyle(.plain)
             .scrollDisabled(true)
             .frame(height: CGFloat(max(reminders.count, 0)) * 54 + 44)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .padding(.horizontal, 16)
         }
         .sheet(isPresented: $showAddSheet) {

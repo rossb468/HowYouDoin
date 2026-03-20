@@ -23,26 +23,30 @@ struct MoodEntryRow: View {
     /// The color of the next entry below this one (for blending).
     let nextColor: Color?
 
-    private let cornerRadius: CGFloat = 14
+    private let cornerRadius: CGFloat = 20
 
     private var shape: UnevenRoundedRectangle {
         switch position {
         case .sole:
-            return UnevenRoundedRectangle(
+            UnevenRoundedRectangle(
                 topLeadingRadius: cornerRadius, bottomLeadingRadius: cornerRadius,
-                bottomTrailingRadius: cornerRadius, topTrailingRadius: cornerRadius)
+                bottomTrailingRadius: cornerRadius, topTrailingRadius: cornerRadius,
+                style: .continuous)
         case .first:
-            return UnevenRoundedRectangle(
+            UnevenRoundedRectangle(
                 topLeadingRadius: cornerRadius, bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0, topTrailingRadius: cornerRadius)
+                bottomTrailingRadius: 0, topTrailingRadius: cornerRadius,
+                style: .continuous)
         case .middle:
-            return UnevenRoundedRectangle(
+            UnevenRoundedRectangle(
                 topLeadingRadius: 0, bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0, topTrailingRadius: 0)
+                bottomTrailingRadius: 0, topTrailingRadius: 0,
+                style: .continuous)
         case .last:
-            return UnevenRoundedRectangle(
+            UnevenRoundedRectangle(
                 topLeadingRadius: 0, bottomLeadingRadius: cornerRadius,
-                bottomTrailingRadius: cornerRadius, topTrailingRadius: 0)
+                bottomTrailingRadius: cornerRadius, topTrailingRadius: 0,
+                style: .continuous)
         }
     }
 
