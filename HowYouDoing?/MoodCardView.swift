@@ -46,48 +46,73 @@ struct MoodEntryRow: View {
         }
     }
 
-    private var showDate: Bool {
-        position == .sole || position == .first
-    }
-
     private var showTime: Bool {
         position != .sole
     }
 
+    /// Show the day-of-week as a header row above the content (multi-entry groups only)
+    private var showGroupHeader: Bool {
+        position == .first
+    }
+
+    /// Show the day-of-week inline next to the mood text (sole entries only)
+    private var showInlineDay: Bool {
+        position == .sole
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Date header for first/sole entry
-            if showDate {
-                Text(dayLabel)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.horizontal, 14)
-                    .padding(.top, 14)
-                    .padding(.bottom, position == .sole ? 0 : 6)
+            // Day-of-week header — only on first entry of a multi-entry group
+            if showGroupHeader {
+                Text(entry.dayOfWeekLabel)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 12)
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
             }
 
-            // Mood content
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
+                // Emoji sized to full row height
                 Text(entry.moodState.emoji)
-                    .font(.system(size: 32))
+                    .font(.system(size: 52))
+                    .frame(maxHeight: .infinity)
 
-                VStack(alignment: .leading, spacing: 3) {
+                // Day (sole only) + mood + optional time stacked vertically
+                VStack(alignment: .leading, spacing: 2) {
+                    if showInlineDay {
+                        Text(entry.dayOfWeekLabel)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+
                     Text(entry.moodState.displayString)
-                        .font(.headline)
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white)
 
                     if showTime {
                         Text(entry.timeLabel)
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.6))
                     }
                 }
 
                 Spacer()
+
+                // Date number + month on the right
+                VStack(spacing: 1) {
+                    Text(entry.dayOfMonthLabel)
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(entry.shortMonthLabel)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .textCase(.uppercase)
+                }
             }
-            .padding(.horizontal, 14)
-            .padding(.top, showDate ? 4 : 10)
-            .padding(.bottom, 14)
+            .padding(.horizontal, 12)
+            .padding(.top, showGroupHeader ? 2 : 8)
+            .padding(.bottom, 10)
 
             // Color blend gradient at the bottom edge for non-last entries
             if let nextColor, position == .first || position == .middle {
@@ -129,14 +154,4 @@ struct MonthDividerView: View {
     }
 }
 
-// MARK: - Week Divider
 
-struct WeekDividerView: View {
-    var body: some View {
-        Rectangle()
-            .fill(.secondary.opacity(0.15))
-            .frame(height: 0.5)
-            .padding(.horizontal, 48)
-            .padding(.vertical, 4)
-    }
-}

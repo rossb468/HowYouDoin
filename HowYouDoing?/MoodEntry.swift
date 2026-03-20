@@ -87,6 +87,34 @@ final class MoodEntry {
         return formatter.string(from: date)
     }
 
+    /// Day of week name (e.g. "Monday", "Today", "Yesterday").
+    var dayOfWeekLabel: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE"
+            return formatter.string(from: date)
+        }
+    }
+
+    /// Day of the month number (e.g. "20").
+    var dayOfMonthLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
+        return formatter.string(from: date)
+    }
+
+    /// Short month name (e.g. "Mar").
+    var shortMonthLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: date)
+    }
+
     /// Returns a human-readable day label relative to now (no time component).
     static func dayLabel(for date: Date) -> String {
         let calendar = Calendar.current

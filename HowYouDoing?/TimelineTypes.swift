@@ -17,7 +17,6 @@ enum TimelineRow: Identifiable {
         nextColor: Color?
     )
     case monthDivider(label: String, id: String)
-    case weekDivider(id: String)
 
     var id: String {
         switch self {
@@ -25,8 +24,6 @@ enum TimelineRow: Identifiable {
             return "entry-\(entry.id)"
         case .monthDivider(_, let id):
             return "month-\(id)"
-        case .weekDivider(let id):
-            return "week-\(id)"
         }
     }
 }
@@ -82,10 +79,9 @@ func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow
             ))
         }
 
-        // Insert dividers between day groups
+        // Insert month divider between day groups at month boundaries
         if dayIndex < dayStarts.count - 1 {
             let nextDayStart = dayStarts[dayIndex + 1]
-
             let currentMonth = calendar.component(.month, from: dayStart)
             let nextMonth = calendar.component(.month, from: nextDayStart)
             let currentYear = calendar.component(.year, from: dayStart)
@@ -97,17 +93,93 @@ func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow
                     label: label,
                     id: "\(nextYear)-\(nextMonth)"
                 ))
-            } else {
-                let currentWeek = calendar.component(.weekOfYear, from: dayStart)
-                let nextWeek = calendar.component(.weekOfYear, from: nextDayStart)
-                if currentWeek != nextWeek {
-                    rows.append(.weekDivider(
-                        id: "week-\(ISO8601DateFormatter().string(from: nextDayStart))"
-                    ))
-                }
             }
         }
     }
 
     return rows
+}
+
+// MARK: - Month Grid (Zoomed-Out View)
+
+/// Represents one month in the zoomed-out calendar grid.
+struct MonthGridSection: Identifiable {
+    let id: String              // e.g. "2026-03"
+    let title: String           // e.g. "March 2026"
+    let year: Int
+    let month: Int
+    let firstWeekday: Int       // weekday of day 1 (1=Sun..7=Sat)
+    let numberOfDays: Int
+    let dayColors: [Int: Color] // day-of-month -> blended mood color
+}
+
+/// Builds month grid sections from mood entries, sorted newest-first.
+func buildMonthGrid(
+    from entries: [MoodEntry],
+    weekStartDay: Int,
+    environment: EnvironmentValues
+) -> [MonthGridSection] {
+    guard !entries.isEmpty else { return [] }
+
+    var calendar = Calendar.current
+    calendar.firstWeekday = weekStartDay
+
+    // Group entries by (year, month)
+    let grouped = Dictionary(grouping: entries) { entry -> DateComponents in
+        calendar.dateComponents([.year, .month], from: entry.date)
+    }
+
+    let monthFormatter = DateFormatter()
+    monthFormatter.dateFormat = "MMMM yyyy"
+
+    // Sort months newest-first
+    let sortedKeys = grouped.keys.sorted { a, b in
+        if a.year! != b.year! { return a.year! > b.year! }
+        return a.month! > b.month!
+    }
+
+    return sortedKeys.map { key in
+        let year = key.year!
+        let month = key.month!
+        let monthEntries = grouped[key]!
+
+        // Group by day-of-month and blend colors
+        let byDay = Dictionary(grouping: monthEntries) { entry in
+            calendar.component(.day, from: entry.date)
+        }
+
+        var dayColors: [Int: Color] = [:]
+        for (day, dayEntries) in byDay {
+            dayColors[day] = blendColors(dayEntries.map(\.moodState.color), in: environment)
+        }
+
+        // Calculate grid metadata
+        let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1))!
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        let range = calendar.range(of: .day, in: .month, for: firstOfMonth)!
+
+        return MonthGridSection(
+            id: "\(year)-\(month)",
+            title: monthFormatter.string(from: firstOfMonth),
+            year: year,
+            month: month,
+            firstWeekday: firstWeekday,
+            numberOfDays: range.count,
+            dayColors: dayColors
+        )
+    }
+}
+
+/// Averages the resolved RGBA components of multiple colors.
+func blendColors(_ colors: [Color], in environment: EnvironmentValues) -> Color {
+    guard !colors.isEmpty else { return .clear }
+    guard colors.count > 1 else { return colors[0] }
+
+    let resolved = colors.map { $0.resolve(in: environment) }
+    let count = Float(resolved.count)
+    let r = resolved.map(\.red).reduce(0, +) / count
+    let g = resolved.map(\.green).reduce(0, +) / count
+    let b = resolved.map(\.blue).reduce(0, +) / count
+
+    return Color(red: Double(r), green: Double(g), blue: Double(b))
 }

@@ -21,10 +21,14 @@ struct ContentView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var settingsHeight: CGFloat = 0
     @State private var isAtTop = true
+    @State private var isZoomedOut = false
+    @State private var pinchScale: CGFloat = 1.0
 
     private var timelineRows: [TimelineRow] {
         buildTimeline(from: Array(moodEntries), weekStartDay: weekStartDay)
     }
+
+
 
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
@@ -61,99 +65,18 @@ struct ContentView: View {
             .offset(y: currentOffset - settingsHeight)
             .clipped()
 
-            // Main content
-            List {
-                // Title
-                Section {
-                    Text("How You Doin'?")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, 12)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
-
-                // Mood buttons
-                Section {
-                    GlassEffectContainer(spacing: 8) {
-                        VStack(spacing: 12) {
-                            HStack(spacing: 12) {
-                                MoodButton(
-                                    primaryMood: .good,
-                                    popoverOptions: [.good, .great],
-                                    onSelect: addMood
-                                )
-
-                                MoodButton(
-                                    primaryMood: .bad,
-                                    popoverOptions: [.bad, .terrible],
-                                    onSelect: addMood
-                                )
-                            }
-
-                            MoodButton(
-                                mood: .neutral,
-                                minHeight: 100,
-                                onSelect: addMood
-                            )
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-
-                // Mood history with day grouping and dividers
-                if !moodEntries.isEmpty {
-                    ForEach(timelineRows) { row in
-                        switch row {
-                        case .moodEntry(let entry, let position, let dayLabel, let nextColor):
-                            MoodEntryRow(
-                                entry: entry,
-                                position: position,
-                                dayLabel: dayLabel,
-                                nextColor: nextColor
-                            )
-                            .listRowInsets(EdgeInsets(
-                                top: position == .sole || position == .first ? 5 : 0,
-                                leading: 16,
-                                bottom: position == .sole || position == .last ? 5 : 0,
-                                trailing: 16
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    deleteMood(entry)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-
-                        case .monthDivider(let label, _):
-                            MonthDividerView(label: label)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-
-                        case .weekDivider:
-                            WeekDividerView()
-                                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-                    }
+            // Main content — switches between normal list and zoomed-out grid
+            Group {
+                if isZoomedOut {
+                    zoomedOutView
+                        .transition(.opacity.combined(with: .scale(scale: 1.05)))
+                } else {
+                    normalListView
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
             }
-            .listStyle(.plain)
-            .scrollEdgeEffectStyle(.soft, for: .all)
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y <= geometry.contentInsets.top + 1
-            } action: { _, atTop in
-                isAtTop = atTop
-            }
+            .scaleEffect(pinchScale)
+            .simultaneousGesture(magnifyGesture)
             .offset(y: currentOffset)
         }
         .simultaneousGesture(settingsDragGesture)
@@ -181,6 +104,147 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Mood Buttons (shared between views)
+
+    private var moodButtonsSection: some View {
+        GlassEffectContainer(spacing: 8) {
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    MoodButton(
+                        primaryMood: .good,
+                        popoverOptions: [.good, .great],
+                        onSelect: addMood
+                    )
+
+                    MoodButton(
+                        primaryMood: .bad,
+                        popoverOptions: [.bad, .terrible],
+                        onSelect: addMood
+                    )
+                }
+
+                MoodButton(
+                    mood: .neutral,
+                    minHeight: 100,
+                    onSelect: addMood
+                )
+            }
+        }
+    }
+
+    // MARK: - Normal List View
+
+    private var normalListView: some View {
+        List {
+            // Title
+            Section {
+                Text("How You Doin'?")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 12)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            // Mood buttons
+            Section {
+                moodButtonsSection
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            // Mood history with day grouping and dividers
+            if !moodEntries.isEmpty {
+                ForEach(timelineRows) { row in
+                    switch row {
+                    case .moodEntry(let entry, let position, let dayLabel, let nextColor):
+                        MoodEntryRow(
+                            entry: entry,
+                            position: position,
+                            dayLabel: dayLabel,
+                            nextColor: nextColor
+                        )
+                        .listRowInsets(EdgeInsets(
+                            top: position == .sole || position == .first ? 10 : 0,
+                            leading: 16,
+                            bottom: position == .sole || position == .last ? 10 : 0,
+                            trailing: 16
+                        ))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteMood(entry)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+
+                    case .monthDivider(let label, _):
+                        MonthDividerView(label: label)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y <= geometry.contentInsets.top + 1
+        } action: { _, atTop in
+            isAtTop = atTop
+        }
+    }
+
+    // MARK: - Zoomed-Out Grid View
+
+    private var zoomedOutView: some View {
+        ScrollView {
+            Text("How You Doin'?")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
+
+            moodButtonsSection
+                .padding(.horizontal, 16)
+                .padding(.bottom, 28)
+
+            if !moodEntries.isEmpty {
+                CompactTimelineView(timelineRows: timelineRows)
+            }
+        }
+        .scrollEdgeEffectStyle(.soft, for: .all)
+    }
+
+    // MARK: - Magnify Gesture
+
+    private var magnifyGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                pinchScale = min(max(value.magnification, 0.5), 1.5)
+            }
+            .onEnded { value in
+                let scale = value.magnification
+
+                withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+                    pinchScale = 1.0
+
+                    if !isZoomedOut && scale < 0.7 {
+                        isZoomedOut = true
+                        triggerHaptic(style: .medium)
+                    } else if isZoomedOut && scale > 1.4 {
+                        isZoomedOut = false
+                        triggerHaptic(style: .medium)
+                    }
+                }
+            }
+    }
+
     /// Applies a rubber-band curve: moves quickly at first, then
     /// increasingly resists as the drag grows relative to the limit.
     private func rubberBand(_ offset: CGFloat, limit: CGFloat) -> CGFloat {
@@ -197,7 +261,7 @@ struct ContentView: View {
                 if settingsOpen {
                     // When open, only allow dragging up (negative)
                     dragOffset = min(0, translation)
-                } else if isAtTop && translation > 0 {
+                } else if isAtTop && !isZoomedOut && translation > 0 {
                     // When closed, only respond if list is at the top
                     let raw = max(0, translation)
                     dragOffset = rubberBand(raw, limit: settingsHeight)
@@ -213,7 +277,7 @@ struct ContentView: View {
                         if -value.translation.height > threshold || velocity < -100 {
                             settingsOpen = false
                         }
-                    } else if isAtTop {
+                    } else if isAtTop && !isZoomedOut {
                         // Snap open only if at top and the visual offset passed the threshold
                         if dragOffset > threshold || velocity > 200 {
                             settingsOpen = true
