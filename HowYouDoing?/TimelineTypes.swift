@@ -88,10 +88,10 @@ func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow
             let nextYear = calendar.component(.year, from: nextDayStart)
 
             if currentMonth != nextMonth || currentYear != nextYear {
-                let label = monthFormatter.string(from: nextDayStart)
+                let label = monthFormatter.string(from: dayStart)
                 rows.append(.monthDivider(
                     label: label,
-                    id: "\(nextYear)-\(nextMonth)"
+                    id: "\(currentYear)-\(currentMonth)"
                 ))
             }
         }
