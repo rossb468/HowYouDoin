@@ -144,6 +144,12 @@ struct ContentView: View {
                     .listRowSeparator(.hidden)
             }
 
+            // Encouragement banner
+            EncouragementBannerView(moodEntries: moodEntries)
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
             // Mood history with day grouping and dividers
             if !moodEntries.isEmpty {
                 ForEach(timelineRows) { row in
@@ -201,6 +207,8 @@ struct ContentView: View {
             moodButtonsSection
                 .padding(.horizontal, 16)
                 .padding(.bottom, 28)
+
+            EncouragementBannerView(moodEntries: moodEntries)
 
             if !moodEntries.isEmpty {
                 CompactTimelineView(timelineRows: timelineRows)

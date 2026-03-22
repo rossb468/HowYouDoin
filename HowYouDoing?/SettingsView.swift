@@ -13,6 +13,7 @@ struct InlineSettingsContent: View {
 
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
+    @AppStorage("encouragementFrequency") private var encouragementFrequencyRaw: String = EncouragementFrequency.onceADay.rawValue
 
     private var reminders: Binding<[Reminder]> {
         Binding(
@@ -61,6 +62,34 @@ struct InlineSettingsContent: View {
                         Text("Thursday").tag(5)
                         Text("Friday").tag(6)
                         Text("Saturday").tag(7)
+                    }
+                    .labelsHidden()
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 12)
+
+            // Encouragement section
+            VStack(spacing: 0) {
+                Text("Encouragement")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+
+                HStack {
+                    Text("Check-in Prompts")
+                        .font(.body)
+                    Spacer()
+                    Picker("Check-in Prompts", selection: $encouragementFrequencyRaw) {
+                        ForEach(EncouragementFrequency.allCases, id: \.rawValue) { freq in
+                            Text(freq.displayString).tag(freq.rawValue)
+                        }
                     }
                     .labelsHidden()
                 }
