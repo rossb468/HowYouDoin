@@ -10,14 +10,21 @@ import SwiftUI
 struct CompactTimelineView: View {
     let timelineRows: [TimelineRow]
 
+    private let tileHeight: CGFloat = 12
+    /// Match the card corner radius, but cap at half the tile height to avoid
+    /// a curve taller than the tile (creates a rounded/capsule end instead).
+    private var tileCornerRadius: CGFloat {
+        min(20, tileHeight / 2)
+    }
+
     var body: some View {
-        LazyVStack(spacing: 0) {
+        LazyVStack(spacing: 5) {
             ForEach(timelineRows) { row in
                 switch row {
                 case .moodEntry(let entry, _, _, _):
-                    Rectangle()
+                    RoundedRectangle(cornerRadius: tileCornerRadius, style: .continuous)
                         .fill(entry.moodState.color)
-                        .frame(height: 12)
+                        .frame(height: tileHeight)
                         .padding(.horizontal, 16)
 
                 case .monthDivider(let label, _):

@@ -157,5 +157,3 @@ struct MonthDividerView: View {
             .frame(height: 1)
     }
 }
-
-

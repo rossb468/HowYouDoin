@@ -7,31 +7,39 @@ import Foundation
 import SwiftData
 
 struct CSVImporter {
-    /// Parses a Daylio-format CSV and inserts MoodEntry objects into the given context.
-    /// Returns the number of entries successfully imported.
-    @discardableResult
-    static func importCSV(from url: URL, into context: ModelContext) -> Int {
-        guard url.startAccessingSecurityScopedResource() else { return 0 }
+
+    enum ParseError: Error {
+        case fileAccessDenied
+        case unreadableFile
+        case invalidFormat
+    }
+
+    /// Parses a Daylio-format CSV and returns MoodEntry objects without inserting them.
+    static func parseCSV(from url: URL) -> Result<[MoodEntry], ParseError> {
+        guard url.startAccessingSecurityScopedResource() else {
+            return .failure(.fileAccessDenied)
+        }
         defer { url.stopAccessingSecurityScopedResource() }
 
-        guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+        guard let contents = try? String(contentsOf: url, encoding: .utf8) else {
+            return .failure(.unreadableFile)
+        }
 
         let lines = contents.components(separatedBy: .newlines)
-        guard lines.count > 1 else { return 0 }
+        guard lines.count > 1 else { return .failure(.invalidFormat) }
 
-        // Parse header to find column indices
         let header = parseCSVLine(lines[0])
         guard let fullDateIndex = header.firstIndex(of: "full_date"),
               let timeIndex = header.firstIndex(of: "time"),
               let moodIndex = header.firstIndex(of: "mood") else {
-            return 0
+            return .failure(.invalidFormat)
         }
 
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.dateFormat = "yyyy-MM-dd h:mm a"
 
-        var importedCount = 0
+        var entries: [MoodEntry] = []
 
         for line in lines.dropFirst() {
             let fields = parseCSVLine(line)
@@ -46,12 +54,41 @@ struct CSVImporter {
             let dateString = "\(fullDate) \(time)"
             guard let date = dateFormatter.date(from: dateString) else { continue }
 
-            let entry = MoodEntry(moodState: moodState, date: date)
-            context.insert(entry)
-            importedCount += 1
+            entries.append(MoodEntry(moodState: moodState, date: date))
         }
 
-        return importedCount
+        return .success(entries)
+    }
+
+    /// Checks whether an imported entry duplicates an existing one.
+    /// A duplicate has the same mood state and same date (to the minute).
+    static func findDuplicates(
+        in importedEntries: [MoodEntry],
+        existingEntries: [MoodEntry]
+    ) -> Set<Int> {
+        let calendar = Calendar.current
+        // Build a set of (moodState, dateToMinute) from existing entries
+        let existingKeys: Set<String> = Set(existingEntries.map { entry in
+            let components = calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: entry.date
+            )
+            return "\(entry.moodState.rawValue)-\(components.year!)-\(components.month!)-\(components.day!)-\(components.hour!)-\(components.minute!)"
+        })
+
+        var duplicateIndices = Set<Int>()
+        for (index, entry) in importedEntries.enumerated() {
+            let components = calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: entry.date
+            )
+            let key = "\(entry.moodState.rawValue)-\(components.year!)-\(components.month!)-\(components.day!)-\(components.hour!)-\(components.minute!)"
+            if existingKeys.contains(key) {
+                duplicateIndices.insert(index)
+            }
+        }
+
+        return duplicateIndices
     }
 
     /// Simple CSV line parser that handles quoted fields.

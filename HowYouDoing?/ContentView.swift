@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,7 +15,7 @@ struct ContentView: View {
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
 
     @State private var showDeleteConfirmation = false
-    @State private var showFileImporter = false
+    @State private var showImportFlow = false
     @State private var settingsOpen = false
     @State private var dragOffset: CGFloat = 0
     @State private var settingsHeight: CGFloat = 0
@@ -54,7 +53,7 @@ struct ContentView: View {
         ZStack(alignment: .top) {
             // Settings panel positioned above the visible area
             InlineSettingsContent(
-                onImportCSV: { showFileImporter = true },
+                onImportCSV: { showImportFlow = true },
                 onDeleteAll: { showDeleteConfirmation = true }
             )
             .onGeometryChange(for: CGFloat.self) { proxy in
@@ -88,19 +87,8 @@ struct ContentView: View {
         } message: {
             Text("This will permanently delete all your mood entries. This cannot be undone.")
         }
-        .fileImporter(
-            isPresented: $showFileImporter,
-            allowedContentTypes: [UTType.commaSeparatedText],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first {
-                    CSVImporter.importCSV(from: url, into: modelContext)
-                }
-            case .failure:
-                break
-            }
+        .sheet(isPresented: $showImportFlow) {
+            CSVImportFlow()
         }
     }
 
