@@ -22,6 +22,7 @@ struct ContentView: View {
     @State private var isAtTop = true
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
+    @State private var editingEntry: MoodEntry?
 
     private var timelineRows: [TimelineRow] {
         buildTimeline(from: Array(moodEntries), weekStartDay: weekStartDay)
@@ -89,6 +90,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showImportFlow) {
             CSVImportFlow()
+        }
+        .sheet(item: $editingEntry) { entry in
+            MoodEditorSheet(entry: entry)
         }
     }
 
@@ -169,6 +173,10 @@ struct ContentView: View {
                         ))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editingEntry = entry
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 deleteMood(entry)
