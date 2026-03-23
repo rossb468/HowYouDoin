@@ -35,9 +35,22 @@ struct EncouragementEngine {
         now: Date,
         reminders: [Reminder],
         moodEntries: [MoodEntry],
-        frequency: EncouragementFrequency
+        frequency: EncouragementFrequency,
+        isFirstCheck: Bool = false
     ) -> Result? {
         guard frequency != .never else { return nil }
+
+        #if DEBUG
+        // In debug builds, always show at launch so the UI can be tested.
+        if isFirstCheck {
+            let calendar = Calendar.current
+            let dayOfYear = calendar.ordinality(of: .day, in: .year, for: now) ?? 1
+            return Result(
+                message: message(forHour: nil, dayOfYear: dayOfYear),
+                icon: icon(forHour: nil)
+            )
+        }
+        #endif
 
         let calendar = Calendar.current
         let enabledReminders = reminders
@@ -236,6 +249,7 @@ struct EncouragementBannerView: View {
     @AppStorage("encouragementFrequency") private var frequencyRaw: String = EncouragementFrequency.onceADay.rawValue
 
     @State private var currentResult: EncouragementEngine.Result?
+    @State private var hasAppeared = false
 
     private var frequency: EncouragementFrequency {
         EncouragementFrequency(rawValue: frequencyRaw) ?? .onceADay
@@ -248,28 +262,27 @@ struct EncouragementBannerView: View {
     var body: some View {
         // TimelineView re-evaluates every 60 seconds without Combine.
         // Bridge the result into @State so SwiftUI can animate transitions.
-        // Everything is inside a single VStack so the list sees one row that
-        // collapses to zero height when the banner is hidden.
-        VStack(spacing: 0) {
+        Group {
+            if let result = currentResult {
+                sheetContent(result)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .bottom)
+                            .combined(with: .scale(scale: 0.8))
+                            .combined(with: .opacity)
+                    ))
+            }
+        }
+        .background {
             TimelineView(.periodic(from: .now, by: 60)) { context in
-                Color.clear.frame(height: 0)
+                Color.clear
                     .onChange(of: context.date) { _, newDate in
                         updateResult(now: newDate)
                     }
                     .onAppear {
-                        updateResult(now: context.date)
+                        updateResult(now: context.date, isFirstCheck: !hasAppeared)
+                        hasAppeared = true
                     }
-            }
-            .frame(height: 0)
-
-            if let result = currentResult {
-                bannerContent(result)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .top)),
-                        removal: .move(edge: .top)
-                            .combined(with: .scale(scale: 0.4))
-                            .combined(with: .opacity)
-                    ))
             }
         }
         .onChange(of: moodEntries.count) {
@@ -280,12 +293,13 @@ struct EncouragementBannerView: View {
         }
     }
 
-    private func updateResult(now: Date) {
+    private func updateResult(now: Date, isFirstCheck: Bool = false) {
         let newResult = EncouragementEngine.encouragement(
             now: now,
             reminders: reminders,
             moodEntries: moodEntries,
-            frequency: frequency
+            frequency: frequency,
+            isFirstCheck: isFirstCheck
         )
         if (currentResult == nil) != (newResult == nil) {
             withAnimation(.spring(duration: 0.5, bounce: 0.15)) {
@@ -296,24 +310,28 @@ struct EncouragementBannerView: View {
         }
     }
 
-    private func bannerContent(_ result: EncouragementEngine.Result) -> some View {
+    private func sheetContent(_ result: EncouragementEngine.Result) -> some View {
         HStack(spacing: 12) {
             Image(systemName: result.icon)
-                .font(.system(size: 22))
+                .font(.system(size: 24))
                 .foregroundStyle(.secondary)
-                .frame(width: 28)
+                .frame(width: 32)
 
             Text(result.message)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.system(size: 16, weight: .medium, design: .rounded))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
 
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial, in: UnevenRoundedRectangle(
+            topLeadingRadius: 20, bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0, topTrailingRadius: 20,
+            style: .continuous
+        ))
+        .shadow(color: .black.opacity(0.1), radius: 10, y: -4)
     }
 }

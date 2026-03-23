@@ -11,6 +11,14 @@ struct InlineSettingsContent: View {
     let onImportCSV: () -> Void
     let onDeleteAll: () -> Void
 
+    private static var isDebugBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("encouragementFrequency") private var encouragementFrequencyRaw: String = EncouragementFrequency.onceADay.rawValue
@@ -139,6 +147,17 @@ struct InlineSettingsContent: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .padding(.horizontal, 16)
             }
+
+            // Build info
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Self.isDebugBuild ? .orange : .moodGreen)
+                    .frame(width: 8, height: 8)
+                Text(Self.isDebugBuild ? "Debug Build" : "Release Build")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 16)
 
             // Chevron hint to swipe up to dismiss
             Image(systemName: "chevron.compact.up")
