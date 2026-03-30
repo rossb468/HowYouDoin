@@ -1,4 +1,5 @@
-# How You Doin'? - A mood tracking app with everything you want and nothing you don't
+# How You Doin'?
+### A mood tracking app with everything you want and nothing you don't
 ###### Design by Ross, code by Claude
 
 The mood tracking app space is full of complicated apps stuffed with features I'll never use. I wanted a simple, native app that would let me enter my mood easily, quickly, and without any friction. I wanted an app where someone could enter and view moods without ever realizing other features existed, yet have those features intuitively available if desired.
