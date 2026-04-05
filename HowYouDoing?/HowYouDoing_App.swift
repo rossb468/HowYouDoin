@@ -7,10 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 @main
 struct HowYouDoing_App: App {
     let modelContainer: ModelContainer
+    private let notificationDelegate: NotificationDelegate
 
     init() {
         // Ensure the Application Support directory exists before SwiftData
@@ -24,22 +26,47 @@ struct HowYouDoing_App: App {
         }
 
         do {
-            modelContainer = try ModelContainer(for: MoodEntry.self)
+            let container = try ModelContainer(for: MoodEntry.self)
+            self.modelContainer = container
+
+            let delegate = NotificationDelegate(modelContainer: container)
+            self.notificationDelegate = delegate
+            UNUserNotificationCenter.current().delegate = delegate
+
+            NotificationManager.registerCategory()
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
     }
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("reminders") private var remindersJSON: String = "[]"
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                ContentView()
-            } else {
-                WelcomeView()
+            Group {
+                if hasCompletedOnboarding {
+                    ContentView()
+                } else {
+                    WelcomeView()
+                }
             }
+            #if DEBUG
+            .task {
+                if UserDefaults.standard.bool(forKey: "debug_alwaysShowWelcome") {
+                    hasCompletedOnboarding = false
+                }
+            }
+            #endif
         }
         .modelContainer(modelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                NotificationManager.clearBadge()
+                let reminders = [Reminder].fromJSON(remindersJSON)
+                NotificationManager.scheduleAll(reminders)
+            }
+        }
     }
 }

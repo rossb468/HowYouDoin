@@ -54,6 +54,13 @@ extension Array where Element == Reminder {
 
 struct NotificationManager {
     private static let identifierPrefix = "moodReminder-"
+    static let categoryIdentifier = "moodCheckIn"
+
+    /// Checks whether the app is authorized to post notifications.
+    static func isAuthorized() async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        return settings.authorizationStatus == .authorized
+    }
 
     /// Requests notification permission. Returns `true` if granted.
     static func requestPermission() async -> Bool {
@@ -63,6 +70,24 @@ struct NotificationManager {
         } catch {
             return false
         }
+    }
+
+    /// Registers the interactive notification category with one action per MoodState.
+    static func registerCategory() {
+        let actions = MoodState.allCases.map { mood in
+            UNNotificationAction(
+                identifier: mood.actionIdentifier,
+                title: "\(mood.emoji) \(mood.displayString)",
+                options: []
+            )
+        }
+        let category = UNNotificationCategory(
+            identifier: categoryIdentifier,
+            actions: actions,
+            intentIdentifiers: [],
+            options: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 
     /// Requests permission and schedules the default reminders.
@@ -78,43 +103,81 @@ struct NotificationManager {
         return []
     }
 
-    /// Cancels all mood reminders, then schedules all enabled ones.
+    /// Cancels all mood reminders, then schedules individual non-repeating
+    /// notifications for each enabled reminder over the next N days,
+    /// with incrementing badge numbers starting from 1.
     static func scheduleAll(_ reminders: [Reminder]) {
         let center = UNUserNotificationCenter.current()
 
         // Remove all existing mood reminders
-        let ids = reminders.map { identifierPrefix + $0.id.uuidString }
-        center.removePendingNotificationRequests(withIdentifiers: ids)
-        // Also do a blanket removal of anything with our prefix
         center.getPendingNotificationRequests { requests in
             let moodIDs = requests
                 .filter { $0.identifier.hasPrefix(identifierPrefix) }
                 .map(\.identifier)
             center.removePendingNotificationRequests(withIdentifiers: moodIDs)
-        }
 
-        // Schedule enabled reminders
-        for reminder in reminders where reminder.isEnabled {
-            let content = UNMutableNotificationContent()
-            content.title = reminder.title
-            content.body = reminder.body
-            content.sound = .default
+            let enabledReminders = reminders.filter(\.isEnabled)
+            guard !enabledReminders.isEmpty else { return }
 
-            var dateComponents = DateComponents()
-            dateComponents.hour = reminder.hour
-            dateComponents.minute = reminder.minute
+            let maxNotifications = 64
+            let daysAhead = max(maxNotifications / max(enabledReminders.count, 1), 1)
 
-            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-            let request = UNNotificationRequest(
-                identifier: identifierPrefix + reminder.id.uuidString,
-                content: content,
-                trigger: trigger
-            )
-            center.add(request)
+            let calendar = Calendar.current
+            let now = Date()
+            var badgeNumber = 1
+
+            for dayOffset in 0..<daysAhead {
+                guard let targetDay = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
+
+                for reminder in enabledReminders {
+                    guard badgeNumber <= maxNotifications else { return }
+
+                    var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDay)
+                    dateComponents.hour = reminder.hour
+                    dateComponents.minute = reminder.minute
+
+                    // Skip notifications in the past
+                    if let fireDate = calendar.date(from: dateComponents), fireDate <= now {
+                        continue
+                    }
+
+                    let content = UNMutableNotificationContent()
+                    content.title = reminder.title
+                    content.body = reminder.body
+                    content.sound = .default
+                    content.badge = NSNumber(value: badgeNumber)
+                    content.categoryIdentifier = categoryIdentifier
+
+                    let trigger = UNCalendarNotificationTrigger(
+                        dateMatching: dateComponents,
+                        repeats: false
+                    )
+                    let identifier = "\(identifierPrefix)\(reminder.id.uuidString)-\(dayOffset)"
+                    let request = UNNotificationRequest(
+                        identifier: identifier,
+                        content: content,
+                        trigger: trigger
+                    )
+                    center.add(request)
+                    badgeNumber += 1
+                }
+            }
         }
     }
 
-    /// Cancels all mood reminders.
+    /// Clears the app badge to zero.
+    static func clearBadge() {
+        UNUserNotificationCenter.current().setBadgeCount(0)
+    }
+
+    /// Clears the badge and reschedules all notifications from badge 1.
+    /// Call this whenever the user logs a mood.
+    static func resetAndReschedule(_ reminders: [Reminder]) {
+        clearBadge()
+        scheduleAll(reminders)
+    }
+
+    /// Cancels all mood reminders and clears the badge.
     static func cancelAll() {
         let center = UNUserNotificationCenter.current()
         center.getPendingNotificationRequests { requests in
@@ -123,5 +186,6 @@ struct NotificationManager {
                 .map(\.identifier)
             center.removePendingNotificationRequests(withIdentifiers: moodIDs)
         }
+        clearBadge()
     }
 }

@@ -23,6 +23,10 @@ struct InlineSettingsContent: View {
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("encouragementFrequency") private var encouragementFrequencyRaw: String = EncouragementFrequency.onceADay.rawValue
 
+    #if DEBUG
+    @AppStorage("debug_alwaysShowWelcome") private var debugAlwaysShowWelcome = false
+    #endif
+
     private var reminders: Binding<[Reminder]> {
         Binding(
             get: { [Reminder].fromJSON(remindersJSON) },
@@ -147,6 +151,26 @@ struct InlineSettingsContent: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .padding(.horizontal, 16)
             }
+
+            #if DEBUG
+            // Debug section
+            VStack(spacing: 0) {
+                Text("Debug")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.orange)
+                    .textCase(.uppercase)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+
+                Toggle("Show Welcome on Launch", isOn: $debugAlwaysShowWelcome)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(.horizontal, 16)
+            }
+            .padding(.top, 12)
+            #endif
 
             // Build info
             HStack(spacing: 6) {

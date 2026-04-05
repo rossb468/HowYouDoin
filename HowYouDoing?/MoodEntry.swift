@@ -19,7 +19,7 @@ extension Color {
 }
 
 
-enum MoodState: String, Codable, Equatable {
+enum MoodState: String, Codable, Equatable, CaseIterable {
     case great
     case good
     case bad
@@ -55,6 +55,18 @@ enum MoodState: String, Codable, Equatable {
         case .terrible: return .moodRedDark
         case .neutral:  return .moodBlue
         }
+    }
+
+    /// Identifier used for UNNotificationAction (e.g. "mood_great").
+    var actionIdentifier: String {
+        "mood_\(rawValue)"
+    }
+
+    /// Resolve a MoodState from a notification action identifier.
+    static func from(actionIdentifier: String) -> MoodState? {
+        guard actionIdentifier.hasPrefix("mood_") else { return nil }
+        let raw = String(actionIdentifier.dropFirst(5))
+        return MoodState(rawValue: raw)
     }
 
     /// Maps CSV mood strings (e.g. Daylio export) to MoodState.

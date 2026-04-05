@@ -13,6 +13,7 @@ struct ContentView: View {
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
 
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
+    @AppStorage("reminders") private var remindersJSON: String = "[]"
 
     @State private var showDeleteConfirmation = false
     @State private var showImportFlow = false
@@ -32,6 +33,8 @@ struct ContentView: View {
 
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
+        let reminders = [Reminder].fromJSON(remindersJSON)
+        NotificationManager.resetAndReschedule(reminders)
     }
 
     private func deleteMood(_ entry: MoodEntry) {
