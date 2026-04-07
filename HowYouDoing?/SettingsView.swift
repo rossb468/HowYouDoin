@@ -22,6 +22,7 @@ struct InlineSettingsContent: View {
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("encouragementFrequency") private var encouragementFrequencyRaw: String = EncouragementFrequency.onceADay.rawValue
+    @AppStorage("openAppOnMoodAction") private var openAppOnMoodAction = false
 
     #if DEBUG
     @AppStorage("debug_alwaysShowWelcome") private var debugAlwaysShowWelcome = false
@@ -51,6 +52,17 @@ struct InlineSettingsContent: View {
             // Reminders section
             InlineRemindersSection(reminders: reminders)
                 .padding(.bottom, 12)
+
+            // Notification behavior
+            Toggle("Open App on Mood Response", isOn: $openAppOnMoodAction)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+                .onChange(of: openAppOnMoodAction) {
+                    NotificationManager.registerCategory()
+                }
 
             // Calendar section
             VStack(spacing: 0) {
@@ -163,11 +175,27 @@ struct InlineSettingsContent: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 6)
 
-                Toggle("Show Welcome on Launch", isOn: $debugAlwaysShowWelcome)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 14)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .padding(.horizontal, 16)
+                VStack(spacing: 0) {
+                    Toggle("Show Welcome on Launch", isOn: $debugAlwaysShowWelcome)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+
+                    Divider()
+                        .padding(.leading, 18)
+
+                    Button {
+                        triggerHaptic()
+                        NotificationManager.scheduleDebugReminder()
+                    } label: {
+                        Label("Send Test Reminder (1 min)", systemImage: "bell.and.waves.left.and.right")
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                    }
+                }
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, 16)
             }
             .padding(.top, 12)
             #endif
@@ -329,11 +357,11 @@ struct ReminderEditorSheet: View {
         switch mode {
         case .add:
             var components = DateComponents()
-            components.hour = 12
+            components.hour = 14
             components.minute = 0
-            let noon = Calendar.current.date(from: components) ?? Date()
-            _selectedTime = State(initialValue: noon)
-            _bodyText = State(initialValue: "Time to check in with yourself.")
+            let defaultTime = Calendar.current.date(from: components) ?? Date()
+            _selectedTime = State(initialValue: defaultTime)
+            _bodyText = State(initialValue: "How are you?")
             _isEnabled = State(initialValue: true)
             existingID = nil
 
@@ -378,7 +406,7 @@ struct ReminderEditorSheet: View {
                             hour: components.hour ?? 12,
                             minute: components.minute ?? 0,
                             title: "How You Doin'?",
-                            body: bodyText.isEmpty ? "Time to check in with yourself." : bodyText,
+                            body: bodyText.isEmpty ? "How are you?" : bodyText,
                             isEnabled: isEnabled
                         )
                         if let existingID {

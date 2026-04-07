@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -14,6 +15,7 @@ struct ContentView: View {
 
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("reminders") private var remindersJSON: String = "[]"
+    @AppStorage("pendingMoodPrompt") private var pendingMoodPrompt = false
 
     @State private var showDeleteConfirmation = false
     @State private var showImportFlow = false
@@ -24,6 +26,8 @@ struct ContentView: View {
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
+    @State private var showMoodPrompt = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var timelineRows: [TimelineRow] {
         buildTimeline(from: Array(moodEntries), weekStartDay: weekStartDay)
@@ -35,6 +39,11 @@ struct ContentView: View {
         modelContext.insert(MoodEntry(moodState: state))
         let reminders = [Reminder].fromJSON(remindersJSON)
         NotificationManager.resetAndReschedule(reminders)
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        pendingMoodPrompt = false
+        withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+            showMoodPrompt = false
+        }
     }
 
     private func deleteMood(_ entry: MoodEntry) {
@@ -68,9 +77,12 @@ struct ContentView: View {
             .offset(y: currentOffset - settingsHeight)
             .clipped()
 
-            // Main content — switches between normal list and zoomed-out grid
+            // Main content — focused mood prompt, or normal/zoomed-out views
             Group {
-                if isZoomedOut {
+                if showMoodPrompt {
+                    moodPromptView
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                } else if isZoomedOut {
                     zoomedOutView
                         .transition(.opacity.combined(with: .scale(scale: 1.05)))
                 } else {
@@ -78,9 +90,9 @@ struct ContentView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
             }
-            .scaleEffect(pinchScale)
+            .scaleEffect(showMoodPrompt ? 1.0 : pinchScale)
             .simultaneousGesture(magnifyGesture)
-            .offset(y: currentOffset)
+            .offset(y: showMoodPrompt ? 0 : currentOffset)
         }
         .simultaneousGesture(settingsDragGesture)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
@@ -97,8 +109,17 @@ struct ContentView: View {
         .sheet(item: $editingEntry) { entry in
             MoodEditorSheet(entry: entry)
         }
-        .overlay(alignment: .bottom) {
-            EncouragementBannerView(moodEntries: moodEntries)
+        .task {
+            await checkForDeliveredReminders()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task { await checkForDeliveredReminders() }
+            }
+            if newPhase == .background {
+                settingsOpen = false
+                dragOffset = 0
+            }
         }
     }
 
@@ -140,7 +161,8 @@ struct ContentView: View {
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .multilineTextAlignment(.center)
-                    .padding(.vertical, 12)
+                    .padding(.top, 24)
+                    .padding(.bottom, 12)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -210,7 +232,8 @@ struct ContentView: View {
             Text("How You Doin'?")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 12)
+                .padding(.top, 24)
+                .padding(.bottom, 12)
 
             moodButtonsSection
                 .padding(.horizontal, 16)
@@ -221,6 +244,42 @@ struct ContentView: View {
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .all)
+    }
+
+    // MARK: - Focused Mood Prompt
+
+    private var moodPromptView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Text("How You Doin'?")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .multilineTextAlignment(.center)
+
+            moodButtonsSection
+                .padding(.horizontal, 16)
+
+            Spacer()
+        }
+    }
+
+    private func checkForDeliveredReminders() async {
+        // Check for newly delivered reminders and persist the flag
+        let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
+        let hasMoodReminders = delivered.contains {
+            $0.request.identifier.hasPrefix("moodReminder-") ||
+            $0.request.identifier.hasPrefix("debugReminder-")
+        }
+        if hasMoodReminders {
+            pendingMoodPrompt = true
+        }
+
+        // Show prompt if the flag is set (persists across launches)
+        if pendingMoodPrompt && !showMoodPrompt {
+            withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+                showMoodPrompt = true
+            }
+        }
     }
 
     // MARK: - Magnify Gesture

@@ -21,7 +21,12 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .badge]
+        // A reminder arrived while the app is open — mark prompt pending
+        let id = notification.request.identifier
+        if id.hasPrefix("moodReminder-") || id.hasPrefix("debugReminder-") {
+            UserDefaults.standard.set(true, forKey: "pendingMoodPrompt")
+        }
+        return [.banner, .sound, .badge]
     }
 
     // MARK: - Action Response
@@ -37,6 +42,8 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             await insertMoodEntry(mood)
             let reminders = currentReminders()
             NotificationManager.resetAndReschedule(reminders)
+            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+            UserDefaults.standard.set(false, forKey: "pendingMoodPrompt")
             return
         }
 

@@ -73,12 +73,15 @@ struct NotificationManager {
     }
 
     /// Registers the interactive notification category with one action per MoodState.
+    /// Reads the `openAppOnMoodAction` preference to decide whether actions launch the app.
     static func registerCategory() {
+        let openApp = UserDefaults.standard.bool(forKey: "openAppOnMoodAction")
+        let actionOptions: UNNotificationActionOptions = openApp ? [.foreground] : []
         let actions = MoodState.allCases.map { mood in
             UNNotificationAction(
                 identifier: mood.actionIdentifier,
                 title: "\(mood.emoji) \(mood.displayString)",
-                options: []
+                options: actionOptions
             )
         }
         let category = UNNotificationCategory(
@@ -176,6 +179,27 @@ struct NotificationManager {
         clearBadge()
         scheduleAll(reminders)
     }
+
+    #if DEBUG
+    /// Schedules a one-off test reminder that fires in 1 minute.
+    /// Not saved to the reminders list.
+    static func scheduleDebugReminder() {
+        let content = UNMutableNotificationContent()
+        content.title = "How You Doin'?"
+        content.body = "Test reminder"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = categoryIdentifier
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 60, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "debugReminder-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+    #endif
 
     /// Cancels all mood reminders and clears the badge.
     static func cancelAll() {

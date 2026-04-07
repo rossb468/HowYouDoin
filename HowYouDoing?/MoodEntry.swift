@@ -22,9 +22,9 @@ extension Color {
 enum MoodState: String, Codable, Equatable, CaseIterable {
     case great
     case good
+    case neutral
     case bad
     case terrible
-    case neutral
 
     var displayString: String {
         switch self {
