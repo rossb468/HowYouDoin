@@ -22,24 +22,25 @@ struct ContentView: View {
     @State private var settingsOpen = false
     @State private var dragOffset: CGFloat = 0
     @State private var settingsHeight: CGFloat = 0
-    @State private var isAtTop = true
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
     @State private var showMoodPrompt = false
     @State private var historyVisible = true
     @State private var promptCentered = true
+    @State private var panelHeight: CGFloat = 0
     @Environment(\.scenePhase) private var scenePhase
 
     private var timelineRows: [TimelineRow] {
         buildTimeline(from: Array(moodEntries), weekStartDay: weekStartDay)
     }
 
-
+    private var reminders: [Reminder] {
+        [Reminder].fromJSON(remindersJSON)
+    }
 
     private func addMood(_ state: MoodState) {
         modelContext.insert(MoodEntry(moodState: state))
-        let reminders = [Reminder].fromJSON(remindersJSON)
         NotificationManager.resetAndReschedule(reminders)
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         pendingMoodPrompt = false
@@ -47,12 +48,12 @@ struct ContentView: View {
         if showMoodPrompt {
             historyVisible = false
 
-            // Phase 1: Slide buttons from center to top
+            // Phase 1: Slide buttons from center to bottom panel
             withAnimation(.spring(duration: 0.5, bounce: 0.1)) {
                 promptCentered = false
             }
 
-            // Phase 2: Swap to list view and fade in history
+            // Phase 2: Swap to normal view and fade in history
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(0.5))
                 showMoodPrompt = false
@@ -74,45 +75,37 @@ struct ContentView: View {
         }
     }
 
-    /// Current translation: 0 when closed, settingsHeight when open.
+    /// How far the panel has moved UP from its resting position.
+    /// 0 = closed (settings hidden below screen), settingsHeight = fully open.
     private var currentOffset: CGFloat {
         let base: CGFloat = settingsOpen ? settingsHeight : 0
         return base + dragOffset
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Settings panel positioned above the visible area
-            InlineSettingsContent(
-                onImportCSV: { showImportFlow = true },
-                onDeleteAll: { showDeleteConfirmation = true }
-            )
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.height
-            } action: { height in
-                settingsHeight = height
-            }
-            .offset(y: currentOffset - settingsHeight)
-            .clipped()
-
-            // Main content — focused mood prompt, or normal/zoomed-out views
-            Group {
-                if showMoodPrompt {
-                    moodPromptView
-                        .transition(.opacity)
-                } else if isZoomedOut {
-                    zoomedOutView
-                        .transition(.opacity.combined(with: .scale(scale: 1.05)))
-                } else {
-                    normalListView
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        ZStack(alignment: .bottom) {
+            if showMoodPrompt {
+                moodPromptView
+                    .transition(.opacity)
+            } else {
+                Group {
+                    if isZoomedOut {
+                        zoomedOutView
+                            .transition(.opacity.combined(with: .scale(scale: 1.05)))
+                    } else {
+                        historyListView
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
                 }
+                .scaleEffect(pinchScale)
+                .simultaneousGesture(magnifyGesture)
+
+                // Floating bottom panel with settings below
+                bottomPanelView
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .scaleEffect(showMoodPrompt ? 1.0 : pinchScale)
-            .simultaneousGesture(magnifyGesture)
-            .offset(y: showMoodPrompt ? 0 : currentOffset)
         }
-        .simultaneousGesture(settingsDragGesture)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete All Moods", role: .destructive) {
@@ -141,60 +134,76 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Mood Buttons (shared between views)
+    // MARK: - Bottom Panel + Settings
 
-    private var moodButtonsSection: some View {
-        GlassEffectContainer(spacing: 8) {
+    private var bottomPanelView: some View {
+        VStack(spacing: 0) {
+            // Mood panel content
             VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    MoodButton(
-                        primaryMood: .good,
-                        popoverOptions: [.good, .great],
-                        onSelect: addMood
-                    )
+                Text("How You Doin'?")
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .center)
 
-                    MoodButton(
-                        primaryMood: .bad,
-                        popoverOptions: [.bad, .terrible],
-                        onSelect: addMood
-                    )
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 12) {
+                        VStack(spacing: 12) {
+                            MoodButton(
+                                primaryMood: .good,
+                                popoverOptions: [.good, .great],
+                                minHeight: 148,
+                                onSelect: addMood
+                            )
+
+                            MoodButton(
+                                primaryMood: .bad,
+                                popoverOptions: [.bad, .terrible],
+                                minHeight: 148,
+                                onSelect: addMood
+                            )
+                        }
+
+                        MoodButton(
+                            mood: .neutral,
+                            minHeight: 308,
+                            onSelect: addMood
+                        )
+                    }
                 }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                panelHeight = height
+            }
 
-                MoodButton(
-                    mood: .neutral,
-                    minHeight: 100,
-                    onSelect: addMood
-                )
+            // Settings content (below mood buttons, hidden off-screen when closed)
+            InlineSettingsContent(
+                onImportCSV: { showImportFlow = true },
+                onDeleteAll: { showDeleteConfirmation = true }
+            )
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                settingsHeight = height
             }
         }
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24)
+                .fill(.ultraThinMaterial)
+                .padding(.bottom, -50)
+        }
+        // Push down so only mood panel is visible; pull up to reveal settings
+        .offset(y: settingsHeight - currentOffset)
+        .simultaneousGesture(settingsDragGesture)
     }
 
-    // MARK: - Normal List View
+    // MARK: - Mood History List
 
-    private var normalListView: some View {
+    private var historyListView: some View {
         List {
-            // Title
-            Section {
-                Text("How You Doin'?")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 32)
-                    .padding(.bottom, 12)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-
-            // Mood buttons
-            Section {
-                moodButtonsSection
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 28, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-
-            // Mood history with day grouping and dividers
             if historyVisible && !moodEntries.isEmpty {
                 ForEach(timelineRows) { row in
                     switch row {
@@ -236,32 +245,21 @@ struct ContentView: View {
         }
         .listStyle(.plain)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.contentOffset.y <= geometry.contentInsets.top + 1
-        } action: { _, atTop in
-            isAtTop = atTop
-        }
+        .contentMargins(.top, 16)
+        .contentMargins(.bottom, panelHeight + 8)
     }
 
     // MARK: - Zoomed-Out Grid View
 
     private var zoomedOutView: some View {
         ScrollView {
-            Text("How You Doin'?")
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 32)
-                .padding(.bottom, 12)
-
-            moodButtonsSection
-                .padding(.horizontal, 16)
-                .padding(.bottom, 28)
-
             if !moodEntries.isEmpty {
                 CompactTimelineView(timelineRows: timelineRows)
+                    .padding(.top, 16)
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .all)
+        .contentMargins(.bottom, panelHeight + 8)
     }
 
     // MARK: - Focused Mood Prompt
@@ -277,15 +275,38 @@ struct ContentView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, promptCentered ? 0 : 32)
 
-            moodButtonsSection
-                .padding(.horizontal, 16)
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 12) {
+                    VStack(spacing: 12) {
+                        MoodButton(
+                            primaryMood: .good,
+                            popoverOptions: [.good, .great],
+                            minHeight: 148,
+                            onSelect: addMood
+                        )
+
+                        MoodButton(
+                            primaryMood: .bad,
+                            popoverOptions: [.bad, .terrible],
+                            minHeight: 148,
+                            onSelect: addMood
+                        )
+                    }
+
+                    MoodButton(
+                        mood: .neutral,
+                        minHeight: 308,
+                        onSelect: addMood
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
 
             Spacer(minLength: 0)
         }
     }
 
     private func checkForDeliveredReminders() async {
-        // Check for newly delivered reminders and persist the flag
         let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
         let hasMoodReminders = delivered.contains {
             $0.request.identifier.hasPrefix("moodReminder-") ||
@@ -295,7 +316,6 @@ struct ContentView: View {
             pendingMoodPrompt = true
         }
 
-        // Show prompt if the flag is set (persists across launches)
         if pendingMoodPrompt && !showMoodPrompt {
             historyVisible = false
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
@@ -328,12 +348,11 @@ struct ContentView: View {
             }
     }
 
-    /// Applies a rubber-band curve: moves quickly at first, then
-    /// increasingly resists as the drag grows relative to the limit.
+    // MARK: - Settings Drag Gesture (swipe up to open, down to close)
+
     private func rubberBand(_ offset: CGFloat, limit: CGFloat) -> CGFloat {
         let clamped = max(offset, 0)
         let ratio = clamped / limit
-        // Logarithmic decay gives a natural rubber-band feel
         return limit * (1 - 1 / (ratio * 0.55 + 1))
     }
 
@@ -342,11 +361,11 @@ struct ContentView: View {
             .onChanged { value in
                 let translation = value.translation.height
                 if settingsOpen {
-                    // When open, only allow dragging up (negative)
-                    dragOffset = min(0, translation)
-                } else if isAtTop && !isZoomedOut && translation > 0 {
-                    // When closed, only respond if list is at the top
-                    let raw = max(0, translation)
+                    // When open, drag DOWN (positive translation) to close
+                    dragOffset = max(-settingsHeight, min(0, -translation))
+                } else if !isZoomedOut && translation < 0 {
+                    // When closed, drag UP (negative translation) to open
+                    let raw = -translation
                     dragOffset = rubberBand(raw, limit: settingsHeight)
                 }
             }
@@ -356,13 +375,13 @@ struct ContentView: View {
 
                 withAnimation(.spring(duration: 0.35, bounce: 0.0)) {
                     if settingsOpen {
-                        // Snap closed if dragged up enough or flicked up
-                        if -value.translation.height > threshold || velocity < -100 {
+                        // Close if dragged down enough or flicked down
+                        if value.translation.height > threshold || velocity > 100 {
                             settingsOpen = false
                         }
-                    } else if isAtTop && !isZoomedOut {
-                        // Snap open only if at top and the visual offset passed the threshold
-                        if dragOffset > threshold || velocity > 200 {
+                    } else if !isZoomedOut {
+                        // Open if dragged up enough or flicked up
+                        if -value.translation.height > threshold || velocity < -200 {
                             settingsOpen = true
                         }
                     }

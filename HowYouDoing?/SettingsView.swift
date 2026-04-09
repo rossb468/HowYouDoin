@@ -211,8 +211,8 @@ struct InlineSettingsContent: View {
             }
             .padding(.top, 16)
 
-            // Chevron hint to swipe up to dismiss
-            Image(systemName: "chevron.compact.up")
+            // Chevron hint to swipe down to dismiss
+            Image(systemName: "chevron.compact.down")
                 .font(.system(size: 24))
                 .foregroundStyle(.secondary.opacity(0.5))
                 .padding(.top, 16)
