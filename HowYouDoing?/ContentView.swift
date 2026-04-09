@@ -27,6 +27,8 @@ struct ContentView: View {
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
     @State private var showMoodPrompt = false
+    @State private var historyVisible = true
+    @State private var promptCentered = true
     @Environment(\.scenePhase) private var scenePhase
 
     private var timelineRows: [TimelineRow] {
@@ -41,8 +43,24 @@ struct ContentView: View {
         NotificationManager.resetAndReschedule(reminders)
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         pendingMoodPrompt = false
-        withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
-            showMoodPrompt = false
+
+        if showMoodPrompt {
+            historyVisible = false
+
+            // Phase 1: Slide buttons from center to top
+            withAnimation(.spring(duration: 0.5, bounce: 0.1)) {
+                promptCentered = false
+            }
+
+            // Phase 2: Swap to list view and fade in history
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.5))
+                showMoodPrompt = false
+                promptCentered = true
+                withAnimation(.easeIn(duration: 0.35)) {
+                    historyVisible = true
+                }
+            }
         }
     }
 
@@ -81,7 +99,7 @@ struct ContentView: View {
             Group {
                 if showMoodPrompt {
                     moodPromptView
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        .transition(.opacity)
                 } else if isZoomedOut {
                     zoomedOutView
                         .transition(.opacity.combined(with: .scale(scale: 1.05)))
@@ -161,7 +179,7 @@ struct ContentView: View {
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 24)
+                    .padding(.top, 32)
                     .padding(.bottom, 12)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .listRowBackground(Color.clear)
@@ -177,7 +195,7 @@ struct ContentView: View {
             }
 
             // Mood history with day grouping and dividers
-            if !moodEntries.isEmpty {
+            if historyVisible && !moodEntries.isEmpty {
                 ForEach(timelineRows) { row in
                     switch row {
                     case .moodEntry(let entry, let position, let dayLabel, let nextColor):
@@ -232,7 +250,7 @@ struct ContentView: View {
             Text("How You Doin'?")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 24)
+                .padding(.top, 32)
                 .padding(.bottom, 12)
 
             moodButtonsSection
@@ -249,17 +267,20 @@ struct ContentView: View {
     // MARK: - Focused Mood Prompt
 
     private var moodPromptView: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        VStack(spacing: promptCentered ? 24 : 12) {
+            Spacer(minLength: 0)
+                .frame(maxHeight: promptCentered ? .infinity : 0)
 
             Text("How You Doin'?")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .frame(maxWidth: .infinity, alignment: .center)
                 .multilineTextAlignment(.center)
+                .padding(.top, promptCentered ? 0 : 32)
 
             moodButtonsSection
                 .padding(.horizontal, 16)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
     }
 
@@ -276,6 +297,7 @@ struct ContentView: View {
 
         // Show prompt if the flag is set (persists across launches)
         if pendingMoodPrompt && !showMoodPrompt {
+            historyVisible = false
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                 showMoodPrompt = true
             }
