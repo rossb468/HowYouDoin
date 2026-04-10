@@ -19,9 +19,7 @@ struct ContentView: View {
 
     @State private var showDeleteConfirmation = false
     @State private var showImportFlow = false
-    @State private var settingsOpen = false
-    @State private var dragOffset: CGFloat = 0
-    @State private var settingsHeight: CGFloat = 0
+    @State private var selectedDetent: PresentationDetent = .height(0)
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
@@ -75,13 +73,6 @@ struct ContentView: View {
         }
     }
 
-    /// How far the panel has moved UP from its resting position.
-    /// 0 = closed (settings hidden below screen), settingsHeight = fully open.
-    private var currentOffset: CGFloat {
-        let base: CGFloat = settingsOpen ? settingsHeight : 0
-        return base + dragOffset
-    }
-
     var body: some View {
         ZStack(alignment: .bottom) {
             if showMoodPrompt {
@@ -99,10 +90,6 @@ struct ContentView: View {
                 }
                 .scaleEffect(pinchScale)
                 .simultaneousGesture(magnifyGesture)
-
-                // Floating bottom panel with settings below
-                bottomPanelView
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -120,6 +107,12 @@ struct ContentView: View {
         .sheet(item: $editingEntry) { entry in
             MoodEditorSheet(entry: entry)
         }
+        .sheet(isPresented: Binding(
+            get: { !showMoodPrompt },
+            set: { _ in }
+        )) {
+            moodPanelSheet
+        }
         .task {
             await checkForDeliveredReminders()
         }
@@ -128,20 +121,18 @@ struct ContentView: View {
                 Task { await checkForDeliveredReminders() }
             }
             if newPhase == .background {
-                settingsOpen = false
-                dragOffset = 0
+                selectedDetent = .height(panelHeight + 20)
             }
         }
     }
 
-    // MARK: - Bottom Panel + Settings
+    // MARK: - Mood Panel Sheet
 
-    private var bottomPanelView: some View {
-        VStack(spacing: 0) {
-            // Mood panel content
+    private var moodPanelSheet: some View {
+        ScrollView {
             VStack(spacing: 12) {
                 Text("How You Doin'?")
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .frame(maxWidth: .infinity, alignment: .center)
 
                 GlassEffectContainer(spacing: 8) {
@@ -150,21 +141,21 @@ struct ContentView: View {
                             MoodButton(
                                 primaryMood: .good,
                                 popoverOptions: [.good, .great],
-                                minHeight: 148,
+                                minHeight: 120,
                                 onSelect: addMood
                             )
 
                             MoodButton(
                                 primaryMood: .bad,
                                 popoverOptions: [.bad, .terrible],
-                                minHeight: 148,
+                                minHeight: 120,
                                 onSelect: addMood
                             )
                         }
 
                         MoodButton(
                             mood: .neutral,
-                            minHeight: 308,
+                            minHeight: 252,
                             onSelect: addMood
                         )
                     }
@@ -179,25 +170,17 @@ struct ContentView: View {
                 panelHeight = height
             }
 
-            // Settings content (below mood buttons, hidden off-screen when closed)
             InlineSettingsContent(
                 onImportCSV: { showImportFlow = true },
                 onDeleteAll: { showDeleteConfirmation = true }
             )
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.height
-            } action: { height in
-                settingsHeight = height
-            }
+            .padding(.top, 24)
         }
-        .background {
-            UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24)
-                .fill(.ultraThinMaterial)
-                .padding(.bottom, -50)
-        }
-        // Push down so only mood panel is visible; pull up to reveal settings
-        .offset(y: settingsHeight - currentOffset)
-        .simultaneousGesture(settingsDragGesture)
+        .presentationDetents([.height(panelHeight + 20), .large], selection: $selectedDetent)
+        .presentationDragIndicator(.hidden)
+        .presentationBackgroundInteraction(.enabled(upThrough: .height(panelHeight + 20)))
+        .presentationBackground(.ultraThinMaterial)
+        .interactiveDismissDisabled()
     }
 
     // MARK: - Mood History List
@@ -348,47 +331,6 @@ struct ContentView: View {
             }
     }
 
-    // MARK: - Settings Drag Gesture (swipe up to open, down to close)
-
-    private func rubberBand(_ offset: CGFloat, limit: CGFloat) -> CGFloat {
-        let clamped = max(offset, 0)
-        let ratio = clamped / limit
-        return limit * (1 - 1 / (ratio * 0.55 + 1))
-    }
-
-    private var settingsDragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                let translation = value.translation.height
-                if settingsOpen {
-                    // When open, drag DOWN (positive translation) to close
-                    dragOffset = max(-settingsHeight, min(0, -translation))
-                } else if !isZoomedOut && translation < 0 {
-                    // When closed, drag UP (negative translation) to open
-                    let raw = -translation
-                    dragOffset = rubberBand(raw, limit: settingsHeight)
-                }
-            }
-            .onEnded { value in
-                let velocity = value.predictedEndTranslation.height - value.translation.height
-                let threshold = settingsHeight * 0.45
-
-                withAnimation(.spring(duration: 0.35, bounce: 0.0)) {
-                    if settingsOpen {
-                        // Close if dragged down enough or flicked down
-                        if value.translation.height > threshold || velocity > 100 {
-                            settingsOpen = false
-                        }
-                    } else if !isZoomedOut {
-                        // Open if dragged up enough or flicked up
-                        if -value.translation.height > threshold || velocity < -200 {
-                            settingsOpen = true
-                        }
-                    }
-                    dragOffset = 0
-                }
-            }
-    }
 }
 
 #Preview {
