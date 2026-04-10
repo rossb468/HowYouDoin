@@ -134,6 +134,8 @@ struct ContentView: View {
                 Text("How You Doin'?")
                     .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
 
                 GlassEffectContainer(spacing: 8) {
                     HStack(spacing: 12) {
@@ -170,16 +172,21 @@ struct ContentView: View {
                 panelHeight = height
             }
 
-            InlineSettingsContent(
-                onImportCSV: { showImportFlow = true },
-                onDeleteAll: { showDeleteConfirmation = true }
-            )
-            .padding(.top, 24)
+            if selectedDetent == .large {
+                InlineSettingsContent(
+                    onImportCSV: { showImportFlow = true },
+                    onDeleteAll: { showDeleteConfirmation = true }
+                )
+                .transition(.opacity)
+            }
         }
         .presentationDetents([.height(panelHeight + 20), .large], selection: $selectedDetent)
         .presentationDragIndicator(.hidden)
         .presentationBackgroundInteraction(.enabled(upThrough: .height(panelHeight + 20)))
-        .presentationBackground(.ultraThinMaterial)
+        .presentationBackground {
+            Color.clear
+                .glassEffect(.regular, in: .rect(cornerRadius: 24))
+        }
         .interactiveDismissDisabled()
     }
 

@@ -68,6 +68,10 @@ struct MoodEditorSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground {
+            Color.clear
+                .glassEffect(.regular, in: .rect(cornerRadius: 24))
+        }
     }
 
     // MARK: - Preview Card
