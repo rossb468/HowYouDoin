@@ -117,9 +117,9 @@ struct ContentView: View {
                 .transition(.opacity)
             }
         }
-        .presentationDetents([.height(panelHeight + 20), .large], selection: $selectedDetent)
+        .presentationDetents([.height(panelHeight), .large], selection: $selectedDetent)
         .presentationDragIndicator(.hidden)
-        .presentationBackgroundInteraction(.enabled(upThrough: .height(panelHeight + 20)))
+        .presentationBackgroundInteraction(.enabled(upThrough: .height(panelHeight)))
         .presentationBackground {
             Color.clear
                 .glassEffect(.regular, in: .rect(cornerRadius: 24))
@@ -180,7 +180,7 @@ struct ContentView: View {
             Text("How You Doin'?")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 12)
+                .padding(.top, 4)
                 .padding(.bottom, 4)
 
             GlassEffectContainer(spacing: 8) {
@@ -209,7 +209,6 @@ struct ContentView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
-        .padding(.bottom, 16)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.height
         } action: { height in
