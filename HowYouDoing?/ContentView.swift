@@ -23,9 +23,6 @@ struct ContentView: View {
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
-    @State private var showMoodPrompt = false
-    @State private var historyVisible = true
-    @State private var promptCentered = true
     @State private var panelHeight: CGFloat = 0
     @Environment(\.scenePhase) private var scenePhase
 
@@ -41,25 +38,9 @@ struct ContentView: View {
         modelContext.insert(MoodEntry(moodState: state))
         NotificationManager.resetAndReschedule(reminders)
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-        pendingMoodPrompt = false
 
-        if showMoodPrompt {
-            historyVisible = false
-
-            // Phase 1: Slide buttons from center to bottom panel
-            withAnimation(.spring(duration: 0.5, bounce: 0.1)) {
-                promptCentered = false
-            }
-
-            // Phase 2: Swap to normal view and fade in history
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.5))
-                showMoodPrompt = false
-                promptCentered = true
-                withAnimation(.easeIn(duration: 0.35)) {
-                    historyVisible = true
-                }
-            }
+        withAnimation(.spring(duration: 0.4, bounce: 0.1)) {
+            pendingMoodPrompt = false
         }
     }
 
@@ -75,22 +56,17 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            if showMoodPrompt {
-                moodPromptView
-                    .transition(.opacity)
-            } else {
-                Group {
-                    if isZoomedOut {
-                        zoomedOutView
-                            .transition(.opacity.combined(with: .scale(scale: 1.05)))
-                    } else {
-                        historyListView
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
+            Group {
+                if isZoomedOut {
+                    zoomedOutView
+                        .transition(.opacity.combined(with: .scale(scale: 1.05)))
+                } else {
+                    historyListView
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
-                .scaleEffect(pinchScale)
-                .simultaneousGesture(magnifyGesture)
             }
+            .scaleEffect(pinchScale)
+            .simultaneousGesture(magnifyGesture)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
@@ -107,10 +83,7 @@ struct ContentView: View {
         .sheet(item: $editingEntry) { entry in
             MoodEditorSheet(entry: entry)
         }
-        .sheet(isPresented: Binding(
-            get: { !showMoodPrompt },
-            set: { _ in }
-        )) {
+        .sheet(isPresented: .constant(true)) {
             moodPanelSheet
         }
         .task {
@@ -130,46 +103,10 @@ struct ContentView: View {
 
     private var moodPanelSheet: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                Text("How You Doin'?")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 12)
-                    .padding(.bottom, 4)
-
-                GlassEffectContainer(spacing: 8) {
-                    HStack(spacing: 12) {
-                        VStack(spacing: 12) {
-                            MoodButton(
-                                primaryMood: .good,
-                                popoverOptions: [.good, .great],
-                                minHeight: 120,
-                                onSelect: addMood
-                            )
-
-                            MoodButton(
-                                primaryMood: .bad,
-                                popoverOptions: [.bad, .terrible],
-                                minHeight: 120,
-                                onSelect: addMood
-                            )
-                        }
-
-                        MoodButton(
-                            mood: .neutral,
-                            minHeight: 252,
-                            onSelect: addMood
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 16)
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.height
-            } action: { height in
-                panelHeight = height
+            if pendingMoodPrompt {
+                tallPanelContent
+            } else {
+                collapsedPanelContent
             }
 
             if selectedDetent == .large {
@@ -190,11 +127,101 @@ struct ContentView: View {
         .interactiveDismissDisabled()
     }
 
+    // MARK: - Tall Panel (reminder triggered, awaiting mood entry)
+
+    private var tallPanelContent: some View {
+        VStack(spacing: 12) {
+            Text("How You Doin'?")
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 12) {
+                    VStack(spacing: 12) {
+                        MoodButton(
+                            primaryMood: .good,
+                            popoverOptions: [.good, .great],
+                            minHeight: 120,
+                            onSelect: addMood
+                        )
+
+                        MoodButton(
+                            primaryMood: .bad,
+                            popoverOptions: [.bad, .terrible],
+                            minHeight: 120,
+                            onSelect: addMood
+                        )
+                    }
+
+                    MoodButton(
+                        mood: .neutral,
+                        minHeight: 252,
+                        onSelect: addMood
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            panelHeight = height
+        }
+    }
+
+    // MARK: - Collapsed Panel (default state)
+
+    private var collapsedPanelContent: some View {
+        VStack(spacing: 12) {
+            Text("How You Doin'?")
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 12) {
+                    MoodButton(
+                        primaryMood: .good,
+                        popoverOptions: [.good, .great],
+                        minHeight: 80,
+                        onSelect: addMood
+                    )
+
+                    MoodButton(
+                        primaryMood: .bad,
+                        popoverOptions: [.bad, .terrible],
+                        minHeight: 80,
+                        onSelect: addMood
+                    )
+
+                    MoodButton(
+                        mood: .neutral,
+                        minHeight: 80,
+                        onSelect: addMood
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            panelHeight = height
+        }
+    }
+
     // MARK: - Mood History List
 
     private var historyListView: some View {
         List {
-            if historyVisible && !moodEntries.isEmpty {
+            if !moodEntries.isEmpty {
                 ForEach(timelineRows) { row in
                     switch row {
                     case .moodEntry(let entry, let position, let dayLabel, let nextColor):
@@ -252,64 +279,15 @@ struct ContentView: View {
         .contentMargins(.bottom, panelHeight + 8)
     }
 
-    // MARK: - Focused Mood Prompt
-
-    private var moodPromptView: some View {
-        VStack(spacing: promptCentered ? 24 : 12) {
-            Spacer(minLength: 0)
-                .frame(maxHeight: promptCentered ? .infinity : 0)
-
-            Text("How You Doin'?")
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .multilineTextAlignment(.center)
-                .padding(.top, promptCentered ? 0 : 32)
-
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 12) {
-                    VStack(spacing: 12) {
-                        MoodButton(
-                            primaryMood: .good,
-                            popoverOptions: [.good, .great],
-                            minHeight: 148,
-                            onSelect: addMood
-                        )
-
-                        MoodButton(
-                            primaryMood: .bad,
-                            popoverOptions: [.bad, .terrible],
-                            minHeight: 148,
-                            onSelect: addMood
-                        )
-                    }
-
-                    MoodButton(
-                        mood: .neutral,
-                        minHeight: 308,
-                        onSelect: addMood
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-
-            Spacer(minLength: 0)
-        }
-    }
-
     private func checkForDeliveredReminders() async {
         let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
         let hasMoodReminders = delivered.contains {
             $0.request.identifier.hasPrefix("moodReminder-") ||
             $0.request.identifier.hasPrefix("debugReminder-")
         }
-        if hasMoodReminders {
-            pendingMoodPrompt = true
-        }
-
-        if pendingMoodPrompt && !showMoodPrompt {
-            historyVisible = false
+        if hasMoodReminders && !pendingMoodPrompt {
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
-                showMoodPrompt = true
+                pendingMoodPrompt = true
             }
         }
     }
