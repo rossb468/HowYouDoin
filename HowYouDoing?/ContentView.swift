@@ -94,7 +94,9 @@ struct ContentView: View {
                 Task { await checkForDeliveredReminders() }
             }
             if newPhase == .background {
-                selectedDetent = .height(panelHeight + 20)
+                withAnimation {
+                    selectedDetent = .height(panelHeight)
+                }
             }
         }
     }
