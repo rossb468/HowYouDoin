@@ -19,11 +19,12 @@ struct ContentView: View {
 
     @State private var showDeleteConfirmation = false
     @State private var showImportFlow = false
-    @State private var selectedDetent: PresentationDetent = .height(0)
+    @State private var selectedDetent: PresentationDetent = .medium
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
     @State private var panelHeight: CGFloat = 0
+    @State private var scrollToTop = false
     @Environment(\.scenePhase) private var scenePhase
 
     private var timelineRows: [TimelineRow] {
@@ -42,6 +43,7 @@ struct ContentView: View {
         withAnimation(.spring(duration: 0.4, bounce: 0.1)) {
             pendingMoodPrompt = false
         }
+        scrollToTop.toggle()
     }
 
     private func deleteMood(_ entry: MoodEntry) {
@@ -67,6 +69,8 @@ struct ContentView: View {
             }
             .scaleEffect(pinchScale)
             .simultaneousGesture(magnifyGesture)
+            .opacity(pendingMoodPrompt ? 0.3 : 1.0)
+            .animation(.easeInOut(duration: 0.3), value: pendingMoodPrompt)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
@@ -119,7 +123,7 @@ struct ContentView: View {
                 .transition(.opacity)
             }
         }
-        .presentationDetents([.height(panelHeight), .large], selection: $selectedDetent)
+        .presentationDetents(panelHeight > 0 ? [.height(panelHeight), .large] : [.medium, .large], selection: $selectedDetent)
         .presentationDragIndicator(.hidden)
         .presentationBackgroundInteraction(.enabled(upThrough: .height(panelHeight)))
         .presentationBackground {
@@ -145,21 +149,21 @@ struct ContentView: View {
                         MoodButton(
                             primaryMood: .good,
                             popoverOptions: [.good, .great],
-                            minHeight: 120,
+                            minHeight: 160,
                             onSelect: addMood
                         )
 
                         MoodButton(
                             primaryMood: .bad,
                             popoverOptions: [.bad, .terrible],
-                            minHeight: 120,
+                            minHeight: 160,
                             onSelect: addMood
                         )
                     }
 
                     MoodButton(
                         mood: .neutral,
-                        minHeight: 252,
+                        minHeight: 332,
                         onSelect: addMood
                     )
                 }
@@ -172,6 +176,9 @@ struct ContentView: View {
             proxy.size.height
         } action: { height in
             panelHeight = height
+            if selectedDetent != .large {
+                selectedDetent = .height(height)
+            }
         }
     }
 
@@ -215,56 +222,74 @@ struct ContentView: View {
             proxy.size.height
         } action: { height in
             panelHeight = height
+            if selectedDetent != .large {
+                selectedDetent = .height(height)
+            }
         }
     }
 
     // MARK: - Mood History List
 
     private var historyListView: some View {
-        List {
-            if !moodEntries.isEmpty {
-                ForEach(timelineRows) { row in
-                    switch row {
-                    case .moodEntry(let entry, let position, let dayLabel, let nextColor):
-                        MoodEntryRow(
-                            entry: entry,
-                            position: position,
-                            dayLabel: dayLabel,
-                            nextColor: nextColor
-                        )
-                        .listRowInsets(EdgeInsets(
-                            top: position == .sole || position == .first ? 10 : 0,
-                            leading: 16,
-                            bottom: position == .sole || position == .last ? 10 : 0,
-                            trailing: 16
-                        ))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            editingEntry = entry
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteMood(entry)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+        ScrollViewReader { proxy in
+            List {
+                Color.clear
+                    .frame(height: 0)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .id("listTop")
 
-                    case .monthDivider(let label, _):
-                        MonthDividerView(label: label)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                if !moodEntries.isEmpty {
+                    ForEach(timelineRows) { row in
+                        switch row {
+                        case .moodEntry(let entry, let position, let dayLabel, let nextColor):
+                            MoodEntryRow(
+                                entry: entry,
+                                position: position,
+                                dayLabel: dayLabel,
+                                nextColor: nextColor
+                            )
+                            .listRowInsets(EdgeInsets(
+                                top: position == .sole || position == .first ? 10 : 0,
+                                leading: 16,
+                                bottom: position == .sole || position == .last ? 10 : 0,
+                                trailing: 16
+                            ))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                editingEntry = entry
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    deleteMood(entry)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+
+                        case .monthDivider(let label, _):
+                            MonthDividerView(label: label)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
                     }
+                }
+
+            }
+            .listStyle(.plain)
+            .scrollEdgeEffectStyle(.soft, for: .all)
+            .contentMargins(.top, 16)
+            .contentMargins(.bottom, panelHeight + 8)
+            .onChange(of: scrollToTop) {
+                withAnimation {
+                    proxy.scrollTo("listTop", anchor: .top)
                 }
             }
         }
-        .listStyle(.plain)
-        .scrollEdgeEffectStyle(.soft, for: .all)
-        .contentMargins(.top, 16)
-        .contentMargins(.bottom, panelHeight + 8)
     }
 
     // MARK: - Zoomed-Out Grid View
