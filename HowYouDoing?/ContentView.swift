@@ -19,11 +19,13 @@ struct ContentView: View {
 
     @State private var showDeleteConfirmation = false
     @State private var showImportFlow = false
-    @State private var selectedDetent: PresentationDetent = .medium
+    @State private var selectedDetent: PresentationDetent = .large
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
     @State private var panelHeight: CGFloat = 0
+    @State private var collapsedHeight: CGFloat = 0
+    @State private var tallHeight: CGFloat = 0
     @State private var scrollToTop = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -41,6 +43,10 @@ struct ContentView: View {
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
 
         withAnimation(.spring(duration: 0.4, bounce: 0.1)) {
+            selectedDetent = .height(collapsedHeight)
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.4))
             pendingMoodPrompt = false
         }
         scrollToTop.toggle()
@@ -69,8 +75,8 @@ struct ContentView: View {
             }
             .scaleEffect(pinchScale)
             .simultaneousGesture(magnifyGesture)
-            .opacity(pendingMoodPrompt ? 0.3 : 1.0)
-            .animation(.easeInOut(duration: 0.3), value: pendingMoodPrompt)
+            .opacity(showTallPanel ? 0.3 : 1.0)
+            .animation(.easeInOut(duration: 0.3), value: showTallPanel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
@@ -81,14 +87,14 @@ struct ContentView: View {
         } message: {
             Text("This will permanently delete all your mood entries. This cannot be undone.")
         }
-        .sheet(isPresented: $showImportFlow) {
-            CSVImportFlow()
-        }
-        .sheet(item: $editingEntry) { entry in
-            MoodEditorSheet(entry: entry)
-        }
         .sheet(isPresented: .constant(true)) {
             moodPanelSheet
+                .sheet(isPresented: $showImportFlow) {
+                    CSVImportFlow()
+                }
+                .sheet(item: $editingEntry) { entry in
+                    MoodEditorSheet(entry: entry)
+                }
         }
         .task {
             await checkForDeliveredReminders()
@@ -99,17 +105,21 @@ struct ContentView: View {
             }
             if newPhase == .background {
                 withAnimation {
-                    selectedDetent = .height(panelHeight)
+                    selectedDetent = .height(collapsedHeight)
                 }
             }
         }
+    }
+
+    private var showTallPanel: Bool {
+        pendingMoodPrompt
     }
 
     // MARK: - Mood Panel Sheet
 
     private var moodPanelSheet: some View {
         ScrollView {
-            if pendingMoodPrompt {
+            if showTallPanel {
                 tallPanelContent
             } else {
                 collapsedPanelContent
@@ -123,9 +133,14 @@ struct ContentView: View {
                 .transition(.opacity)
             }
         }
-        .presentationDetents(panelHeight > 0 ? [.height(panelHeight), .large] : [.medium, .large], selection: $selectedDetent)
+        .presentationDetents(
+            collapsedHeight > 0
+                ? [.height(collapsedHeight), .large]
+                : [.large],
+            selection: $selectedDetent
+        )
         .presentationDragIndicator(.hidden)
-        .presentationBackgroundInteraction(.enabled(upThrough: .height(panelHeight)))
+        .presentationBackgroundInteraction(.enabled(upThrough: .height(collapsedHeight)))
         .presentationBackground {
             Color.clear
                 .glassEffect(.regular, in: .rect(cornerRadius: 24))
@@ -176,9 +191,6 @@ struct ContentView: View {
             proxy.size.height
         } action: { height in
             panelHeight = height
-            if selectedDetent != .large {
-                selectedDetent = .height(height)
-            }
         }
     }
 
@@ -221,8 +233,10 @@ struct ContentView: View {
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.height
         } action: { height in
+            let isFirstMeasurement = collapsedHeight == 0
+            collapsedHeight = height
             panelHeight = height
-            if selectedDetent != .large {
+            if isFirstMeasurement && !pendingMoodPrompt {
                 selectedDetent = .height(height)
             }
         }
@@ -282,7 +296,7 @@ struct ContentView: View {
             }
             .listStyle(.plain)
             .scrollEdgeEffectStyle(.soft, for: .all)
-            .contentMargins(.top, 16)
+            .contentMargins(.top, 0)
             .contentMargins(.bottom, panelHeight + 8)
             .onChange(of: scrollToTop) {
                 withAnimation {
@@ -314,6 +328,7 @@ struct ContentView: View {
         if hasMoodReminders && !pendingMoodPrompt {
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                 pendingMoodPrompt = true
+                selectedDetent = .medium
             }
         }
     }

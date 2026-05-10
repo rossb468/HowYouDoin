@@ -84,8 +84,8 @@ enum MoodState: String, Codable, Equatable, CaseIterable {
 
 @Model
 final class MoodEntry {
-    var moodState: MoodState
-    var date: Date
+    var moodState: MoodState = MoodState.neutral
+    var date: Date = Date()
 
     init(moodState: MoodState, date: Date = Date()) {
         self.moodState = moodState

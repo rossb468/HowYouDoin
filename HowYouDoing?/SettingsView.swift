@@ -4,6 +4,32 @@
 //
 
 import SwiftUI
+import CoreData
+
+@Observable
+final class CloudSyncMonitor {
+    var lastSyncDate: Date?
+
+    private var observer: Any?
+
+    init() {
+        observer = NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event,
+                  event.succeeded,
+                  let endDate = event.endDate else { return }
+            self?.lastSyncDate = endDate
+        }
+    }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+}
 
 /// Inline settings content designed to be embedded above the main content
 /// in a ScrollView. The user reveals it by pulling down from the top.
@@ -11,13 +37,8 @@ struct InlineSettingsContent: View {
     let onImportCSV: () -> Void
     let onDeleteAll: () -> Void
 
-    private static var isDebugBuild: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
-    }
+    @State private var syncMonitor = CloudSyncMonitor()
+    @State private var showAnalytics = false
 
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
@@ -47,7 +68,35 @@ struct InlineSettingsContent: View {
             Text("Settings")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.bottom, 16)
+                .padding(.bottom, 4)
+
+            HStack(spacing: 4) {
+                Image(systemName: "icloud")
+                    .font(.system(size: 11))
+                if let date = syncMonitor.lastSyncDate {
+                    Text("Last synced \(date.formatted(.relative(presentation: .named)))")
+                } else {
+                    Text("Waiting to sync…")
+                }
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .padding(.bottom, 12)
+
+            // Analytics button
+            Button {
+                triggerHaptic()
+                showAnalytics = true
+            } label: {
+                Label("Analytics", systemImage: "chart.bar.xaxis")
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+            }
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
 
             // Reminders section
             InlineRemindersSection(reminders: reminders)
@@ -200,23 +249,11 @@ struct InlineSettingsContent: View {
             .padding(.top, 12)
             #endif
 
-            // Build info
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(Self.isDebugBuild ? .orange : .moodGreen)
-                    .frame(width: 8, height: 8)
-                Text(Self.isDebugBuild ? "Debug Build" : "Release Build")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 16)
-
-            // Chevron hint to swipe down to dismiss
-            Image(systemName: "chevron.compact.down")
-                .font(.system(size: 24))
-                .foregroundStyle(.secondary.opacity(0.5))
-                .padding(.top, 16)
-                .padding(.bottom, 8)
+            Spacer()
+                .frame(height: 16)
+        }
+        .sheet(isPresented: $showAnalytics) {
+            AnalyticsView()
         }
     }
 }

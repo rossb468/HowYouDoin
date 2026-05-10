@@ -26,7 +26,10 @@ struct HowYouDoing_App: App {
         }
 
         do {
-            let container = try ModelContainer(for: MoodEntry.self)
+            let config = ModelConfiguration(
+                cloudKitDatabase: .private("iCloud.com.ross.HowYouDoing-")
+            )
+            let container = try ModelContainer(for: MoodEntry.self, configurations: config)
             self.modelContainer = container
 
             let delegate = NotificationDelegate(modelContainer: container)
