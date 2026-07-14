@@ -295,11 +295,10 @@ private struct CSVPreviewView: View {
                 } else {
                     ForEach(timelineRows) { row in
                         switch row {
-                        case .moodEntry(let entry, let position, let dayLabel, let nextColor):
+                        case .moodEntry(let entry, let position, let nextColor):
                             MoodEntryRow(
                                 entry: entry,
                                 position: position,
-                                dayLabel: dayLabel,
                                 nextColor: nextColor
                             )
                             .listRowInsets(EdgeInsets(

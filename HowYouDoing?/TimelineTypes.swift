@@ -5,6 +5,13 @@
 
 import SwiftUI
 
+// Shared formatters — DateFormatter initialization is expensive, so we cache one instance.
+private let monthYearFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "MMMM yyyy"
+    return f
+}()
+
 // MARK: - Timeline Row
 
 /// A single flat row in the mood timeline list. Each entry is its own row
@@ -13,14 +20,13 @@ enum TimelineRow: Identifiable {
     case moodEntry(
         entry: MoodEntry,
         position: EntryPosition,
-        dayLabel: String,
         nextColor: Color?
     )
     case monthDivider(label: String, id: String)
 
     var id: String {
         switch self {
-        case .moodEntry(let entry, _, _, _):
+        case .moodEntry(let entry, _, _):
             return "entry-\(entry.id)"
         case .monthDivider(_, let id):
             return "month-\(id)"
@@ -47,12 +53,9 @@ func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow
     let dayStarts = grouped.keys.sorted(by: >)
 
     var rows: [TimelineRow] = []
-    let monthFormatter = DateFormatter()
-    monthFormatter.dateFormat = "MMMM yyyy"
 
     for (dayIndex, dayStart) in dayStarts.enumerated() {
         let dayEntries = grouped[dayStart]!.sorted { $0.date > $1.date }
-        let dayLabel = MoodEntry.dayLabel(for: dayStart)
 
         // Emit each entry as its own row with position metadata
         for (entryIndex, entry) in dayEntries.enumerated() {
@@ -74,7 +77,6 @@ func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow
             rows.append(.moodEntry(
                 entry: entry,
                 position: position,
-                dayLabel: dayLabel,
                 nextColor: nextColor
             ))
         }
@@ -88,7 +90,7 @@ func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow
             let nextYear = calendar.component(.year, from: nextDayStart)
 
             if currentMonth != nextMonth || currentYear != nextYear {
-                let label = monthFormatter.string(from: dayStart)
+                let label = monthYearFormatter.string(from: dayStart)
                 rows.append(.monthDivider(
                     label: label,
                     id: "\(currentYear)-\(currentMonth)"
@@ -129,9 +131,6 @@ func buildMonthGrid(
         calendar.dateComponents([.year, .month], from: entry.date)
     }
 
-    let monthFormatter = DateFormatter()
-    monthFormatter.dateFormat = "MMMM yyyy"
-
     // Sort months newest-first
     let sortedKeys = grouped.keys.sorted { a, b in
         if a.year! != b.year! { return a.year! > b.year! }
@@ -160,7 +159,7 @@ func buildMonthGrid(
 
         return MonthGridSection(
             id: "\(year)-\(month)",
-            title: monthFormatter.string(from: firstOfMonth),
+            title: monthYearFormatter.string(from: firstOfMonth),
             year: year,
             month: month,
             firstWeekday: firstWeekday,

@@ -19,7 +19,6 @@ enum EntryPosition {
 struct MoodEntryRow: View {
     let entry: MoodEntry
     let position: EntryPosition
-    let dayLabel: String
     /// The color of the next entry below this one (for blending).
     let nextColor: Color?
 

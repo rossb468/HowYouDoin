@@ -21,7 +21,7 @@ struct CompactTimelineView: View {
         LazyVStack(spacing: 5) {
             ForEach(timelineRows) { row in
                 switch row {
-                case .moodEntry(let entry, _, _, _):
+                case .moodEntry(let entry, _, _):
                     RoundedRectangle(cornerRadius: tileCornerRadius, style: .continuous)
                         .fill(entry.moodState.color)
                         .frame(height: tileHeight)

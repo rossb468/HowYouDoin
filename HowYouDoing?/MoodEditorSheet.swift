@@ -5,6 +5,22 @@
 
 import SwiftUI
 
+private let editorFullDateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "EEEE, MMM d 'at' h:mm a"
+    return f
+}()
+private let editorDayOfMonthFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "d"
+    return f
+}()
+private let editorShortMonthFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "MMM"
+    return f
+}()
+
 struct MoodEditorSheet: View {
     @Bindable var entry: MoodEntry
     @Environment(\.dismiss) private var dismiss
@@ -149,20 +165,14 @@ struct MoodEditorSheet: View {
     // MARK: - Date Helpers
 
     private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d 'at' h:mm a"
-        return formatter.string(from: selectedDate)
+        editorFullDateFormatter.string(from: selectedDate)
     }
 
     private var dayOfMonth: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: selectedDate)
+        editorDayOfMonthFormatter.string(from: selectedDate)
     }
 
     private var shortMonth: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: selectedDate)
+        editorShortMonthFormatter.string(from: selectedDate)
     }
 }

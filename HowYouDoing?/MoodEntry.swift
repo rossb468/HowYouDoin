@@ -82,6 +82,29 @@ enum MoodState: String, Codable, Equatable, CaseIterable {
     }
 }
 
+// Shared DateFormatter instances — formatter initialization is one of the
+// slowest things in Foundation, so we cache one of each format we use.
+private let timeFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "h:mm a"
+    return f
+}()
+private let weekdayFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "EEEE"
+    return f
+}()
+private let dayOfMonthFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "d"
+    return f
+}()
+private let shortMonthFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "MMM"
+    return f
+}()
+
 @Model
 final class MoodEntry {
     var moodState: MoodState = MoodState.neutral
@@ -94,9 +117,7 @@ final class MoodEntry {
 
     /// Formatted time string (e.g. "2:30 PM").
     var timeLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: date)
+        timeFormatter.string(from: date)
     }
 
     /// Day of week name (e.g. "Monday", "Today", "Yesterday").
@@ -107,70 +128,17 @@ final class MoodEntry {
         } else if calendar.isDateInYesterday(date) {
             return "Yesterday"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE"
-            return formatter.string(from: date)
+            return weekdayFormatter.string(from: date)
         }
     }
 
     /// Day of the month number (e.g. "20").
     var dayOfMonthLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
+        dayOfMonthFormatter.string(from: date)
     }
 
     /// Short month name (e.g. "Mar").
     var shortMonthLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    /// Returns a human-readable day label relative to now (no time component).
-    static func dayLabel(for date: Date) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        let components = calendar.dateComponents([.day], from: date, to: now)
-
-        if calendar.isDateInToday(date) {
-            return "Today"
-        } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
-        } else if let days = components.day, days < 7 {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE"
-            return formatter.string(from: date)
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM dd"
-            return formatter.string(from: date)
-        }
-    }
-
-    /// Returns a human-readable date label relative to now.
-    /// Includes time when multiple entries share the same day.
-    func dateLabel(in entries: [MoodEntry]) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        let components = calendar.dateComponents([.day], from: date, to: now)
-        let formatter = DateFormatter()
-
-        if calendar.isDateInToday(date) {
-            formatter.dateFormat = "'Today'"
-        } else if calendar.isDateInYesterday(date) {
-            formatter.dateFormat = "'Yesterday'"
-        } else if let days = components.day, days < 7 {
-            formatter.dateFormat = "EEEE"
-        } else {
-            formatter.dateFormat = "MMMM dd"
-        }
-
-        let sameDayCount = entries.filter { calendar.isDate($0.date, inSameDayAs: date) }.count
-        if sameDayCount > 1 {
-            formatter.dateFormat += " 'at' h:mm a"
-        }
-
-        return formatter.string(from: date)
+        shortMonthFormatter.string(from: date)
     }
 }

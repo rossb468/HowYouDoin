@@ -7,6 +7,7 @@ import Foundation
 import UserNotifications
 import SwiftData
 
+@MainActor
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     let modelContainer: ModelContainer
 
@@ -39,7 +40,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
         // User tapped a mood action from the notification banner
         if let mood = MoodState.from(actionIdentifier: actionIdentifier) {
-            await insertMoodEntry(mood)
+            insertMoodEntry(mood)
             let reminders = currentReminders()
             NotificationManager.resetAndReschedule(reminders)
             UNUserNotificationCenter.current().removeAllDeliveredNotifications()
@@ -55,7 +56,6 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     // MARK: - Helpers
 
-    @MainActor
     private func insertMoodEntry(_ mood: MoodState) {
         let context = modelContainer.mainContext
         let entry = MoodEntry(moodState: mood)

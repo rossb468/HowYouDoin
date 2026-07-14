@@ -10,6 +10,7 @@ import Charts
 struct AnalyticsView: View {
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
 
     private var sortedEntries: [MoodEntry] {
         moodEntries.sorted { $0.date < $1.date }
@@ -28,6 +29,7 @@ struct AnalyticsView: View {
                 } else {
                     VStack(spacing: 20) {
                         summaryCards
+                        weekOverWeekCard
                         moodDistributionChart
                         weeklyTrendChart
                         dayOfWeekChart
@@ -76,6 +78,62 @@ struct AnalyticsView: View {
         let calendar = Calendar.current
         let days = Set(moodEntries.map { calendar.startOfDay(for: $0.date) })
         return days.count
+    }
+
+    // MARK: - Week-over-Week Insight
+
+    private var weekOverWeekCard: some View {
+        let calendar = Calendar.current
+        let now = Date()
+        let oneWeekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+        let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: now)!
+
+        let thisWeek = moodEntries.filter { $0.date > oneWeekAgo }
+        let lastWeek = moodEntries.filter { $0.date > twoWeeksAgo && $0.date <= oneWeekAgo }
+
+        let thisAvg = thisWeek.isEmpty ? 0 : thisWeek.map(\.moodState.numericValue).reduce(0, +) / Double(thisWeek.count)
+        let lastAvg = lastWeek.isEmpty ? 0 : lastWeek.map(\.moodState.numericValue).reduce(0, +) / Double(lastWeek.count)
+        let delta = thisAvg - lastAvg
+
+        let hasComparison = !thisWeek.isEmpty && !lastWeek.isEmpty
+        let arrow: String
+        let arrowColor: Color
+        let summary: String
+        if !hasComparison {
+            arrow = "minus.circle"
+            arrowColor = .secondary
+            summary = thisWeek.isEmpty ? "No entries this week" : "Not enough history yet"
+        } else if abs(delta) < 0.15 {
+            arrow = "equal.circle.fill"
+            arrowColor = .moodBlue
+            summary = "About the same as last week"
+        } else if delta > 0 {
+            arrow = "arrow.up.right.circle.fill"
+            arrowColor = .moodGreen
+            summary = String(format: "Up %.1f vs. last week", delta)
+        } else {
+            arrow = "arrow.down.right.circle.fill"
+            arrowColor = .moodRed
+            summary = String(format: "Down %.1f vs. last week", abs(delta))
+        }
+
+        return ChartCard(title: "This Week vs. Last Week") {
+            HStack(spacing: 14) {
+                Image(systemName: arrow)
+                    .font(.system(size: 32))
+                    .foregroundStyle(arrowColor)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(summary)
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("\(thisWeek.count) entr\(thisWeek.count == 1 ? "y" : "ies") this week · \(lastWeek.count) last week")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+        }
     }
 
     // MARK: - Mood Distribution
@@ -138,13 +196,6 @@ struct AnalyticsView: View {
                     .interpolationMethod(.catmullRom)
                     .foregroundStyle(Color.moodBlue)
 
-                    AreaMark(
-                        x: .value("Week", week.weekStart, unit: .weekOfYear),
-                        y: .value("Avg", week.average)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.moodBlue.opacity(0.15))
-
                     PointMark(
                         x: .value("Week", week.weekStart, unit: .weekOfYear),
                         y: .value("Avg", week.average)
@@ -171,17 +222,23 @@ struct AnalyticsView: View {
     // MARK: - Day of Week
 
     private var dayOfWeekChart: some View {
-        let calendar = Calendar.current
-        let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        var calendar = Calendar.current
+        calendar.firstWeekday = weekStartDay
+        let shortSymbols = calendar.shortWeekdaySymbols
 
         let grouped = Dictionary(grouping: moodEntries) { entry in
             calendar.component(.weekday, from: entry.date)
         }
 
-        let data: [DayCount] = (1...7).map { weekday in
+        // Render weekdays in the user's preferred week order.
+        let orderedWeekdays = (0..<7).map { offset -> Int in
+            ((weekStartDay - 1 + offset) % 7) + 1
+        }
+
+        let data: [DayCount] = orderedWeekdays.map { weekday in
             let entries = grouped[weekday] ?? []
             let avg = entries.isEmpty ? 0.0 : entries.map { $0.moodState.numericValue }.reduce(0.0, +) / Double(entries.count)
-            return DayCount(day: dayNames[weekday - 1], count: entries.count, average: avg, weekday: weekday)
+            return DayCount(day: shortSymbols[weekday - 1], count: entries.count, average: avg, weekday: weekday)
         }
 
         return ChartCard(title: "By Day of Week") {
@@ -193,6 +250,7 @@ struct AnalyticsView: View {
                 .foregroundStyle(item.average > 0 ? MoodState.fromNumericDouble(item.average).color.opacity(0.8) : .gray.opacity(0.3))
                 .cornerRadius(6)
             }
+            .chartXScale(domain: data.map(\.day))
             .frame(height: 160)
         }
     }
@@ -245,8 +303,16 @@ struct AnalyticsView: View {
         let today = calendar.startOfDay(for: Date())
         let uniqueDays = Set(moodEntries.map { calendar.startOfDay(for: $0.date) }).sorted(by: >)
 
-        var currentStreak = 0
+        // Grace day: if the user hasn't logged today yet but logged yesterday,
+        // anchor the streak at yesterday so they don't lose it before midnight.
         var checkDate = today
+        if let mostRecent = uniqueDays.first,
+           mostRecent != today,
+           mostRecent == calendar.date(byAdding: .day, value: -1, to: today) {
+            checkDate = mostRecent
+        }
+
+        var currentStreak = 0
         for day in uniqueDays {
             if day == checkDate {
                 currentStreak += 1
@@ -372,15 +438,16 @@ extension MoodState {
 
     static func fromNumeric(_ value: Int) -> MoodState {
         switch value {
-        case 1: return .terrible
-        case 2: return .bad
-        case 3: return .neutral
-        case 4: return .good
-        default: return .great
+        case ...1:  return .terrible
+        case 2:     return .bad
+        case 3:     return .neutral
+        case 4:     return .good
+        default:    return .great
         }
     }
 
     static func fromNumericDouble(_ value: Double) -> MoodState {
-        fromNumeric(Int(value.rounded()))
+        let clamped = min(max(value, 1), 5)
+        return fromNumeric(Int(clamped.rounded()))
     }
 }

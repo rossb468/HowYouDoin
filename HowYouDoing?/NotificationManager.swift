@@ -6,6 +6,12 @@
 import Foundation
 import UserNotifications
 
+private let reminderTimeFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "h:mm a"
+    return f
+}()
+
 // MARK: - Reminder Model
 
 struct Reminder: Identifiable, Codable, Equatable {
@@ -18,13 +24,11 @@ struct Reminder: Identifiable, Codable, Equatable {
 
     /// Formatted time string (e.g. "8:00 AM").
     var timeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
         var components = DateComponents()
         components.hour = hour
         components.minute = minute
         let date = Calendar.current.date(from: components) ?? Date()
-        return formatter.string(from: date)
+        return reminderTimeFormatter.string(from: date)
     }
 
     /// Default reminders offered on first launch.

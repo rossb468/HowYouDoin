@@ -9,6 +9,8 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
+private let detentEpsilon: CGFloat = 1
+
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
@@ -103,16 +105,46 @@ struct ContentView: View {
             if newPhase == .active {
                 Task { await checkForDeliveredReminders() }
             }
-            if newPhase == .background {
+            if newPhase == .background && collapsedHeight > 0 {
                 withAnimation {
                     selectedDetent = .height(collapsedHeight)
                 }
+            }
+        }
+        .onChange(of: tallHeight) { _, newHeight in
+            // While a prompt is pending, keep the sheet sized to the tall
+            // panel so the larger buttons are never clipped — regardless of
+            // what detent we were resting at when the prompt appeared.
+            if pendingMoodPrompt && newHeight > 0 && selectedDetent != .height(newHeight) {
+                withAnimation(.spring(duration: 0.3, bounce: 0.1)) {
+                    selectedDetent = .height(newHeight)
+                }
+            }
+        }
+        .onChange(of: pendingMoodPrompt) { _, isPending in
+            // A reminder can turn this on while the sheet is collapsed (e.g. it
+            // arrives in the foreground, or the flag was persisted from a prior
+            // launch). Grow to the tall panel as soon as the prompt begins.
+            guard isPending else { return }
+            withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+                selectedDetent = tallHeight > 0 ? .height(tallHeight) : .large
             }
         }
     }
 
     private var showTallPanel: Bool {
         pendingMoodPrompt
+    }
+
+    private var sheetDetents: Set<PresentationDetent> {
+        var detents: Set<PresentationDetent> = [.large]
+        if collapsedHeight > 0 {
+            detents.insert(.height(collapsedHeight))
+        }
+        if tallHeight > 0 && abs(tallHeight - collapsedHeight) > detentEpsilon {
+            detents.insert(.height(tallHeight))
+        }
+        return detents
     }
 
     // MARK: - Mood Panel Sheet
@@ -125,7 +157,7 @@ struct ContentView: View {
                 collapsedPanelContent
             }
 
-            if selectedDetent == .large {
+            if selectedDetent == .large && !pendingMoodPrompt {
                 InlineSettingsContent(
                     onImportCSV: { showImportFlow = true },
                     onDeleteAll: { showDeleteConfirmation = true }
@@ -134,9 +166,7 @@ struct ContentView: View {
             }
         }
         .presentationDetents(
-            collapsedHeight > 0
-                ? [.height(collapsedHeight), .large]
-                : [.large],
+            sheetDetents,
             selection: $selectedDetent
         )
         .presentationDragIndicator(.hidden)
@@ -191,6 +221,7 @@ struct ContentView: View {
             proxy.size.height
         } action: { height in
             panelHeight = height
+            tallHeight = height
         }
     }
 
@@ -257,11 +288,10 @@ struct ContentView: View {
                 if !moodEntries.isEmpty {
                     ForEach(timelineRows) { row in
                         switch row {
-                        case .moodEntry(let entry, let position, let dayLabel, let nextColor):
+                        case .moodEntry(let entry, let position, let nextColor):
                             MoodEntryRow(
                                 entry: entry,
                                 position: position,
-                                dayLabel: dayLabel,
                                 nextColor: nextColor
                             )
                             .listRowInsets(EdgeInsets(
@@ -326,10 +356,8 @@ struct ContentView: View {
             $0.request.identifier.hasPrefix("debugReminder-")
         }
         if hasMoodReminders && !pendingMoodPrompt {
-            withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
-                pendingMoodPrompt = true
-                selectedDetent = .medium
-            }
+            // The detent adjustment is handled by onChange(of: pendingMoodPrompt).
+            pendingMoodPrompt = true
         }
     }
 
