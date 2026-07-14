@@ -8,9 +8,16 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import OSLog
 
 @main
 struct HowYouDoing_App: App {
+    /// Logger used to annotate persistence events in the console.
+    private static let persistenceLog = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "HowYouDoing",
+        category: "persistence"
+    )
+
     let modelContainer: ModelContainer
     private let notificationDelegate: NotificationDelegate
 
@@ -31,6 +38,22 @@ struct HowYouDoing_App: App {
             )
             let container = try ModelContainer(for: MoodEntry.self, configurations: config)
             self.modelContainer = container
+
+            // KNOWN BENIGN WARNING:
+            // When the CloudKit-backed store loads, Core Data logs:
+            //   "'NSKeyedUnarchiveFromData' should not be used to for un-archiving
+            //    and will be removed in a future release"
+            // This originates from NSPersistentCloudKitContainer's own internal
+            // Transformable metadata — NOT from our models. `MoodState` is a
+            // String-backed enum persisted as its raw value, so nothing in this
+            // app relies on the legacy keyed archiver. The warning is safe to
+            // ignore; we log the note below so it has context when it appears.
+            Self.persistenceLog.notice("""
+            Model container ready. A Core Data \
+            'NSKeyedUnarchiveFromData' warning may appear near this point — \
+            it comes from the CloudKit store's internal metadata and is \
+            expected and safe to ignore.
+            """)
 
             let delegate = NotificationDelegate(modelContainer: container)
             self.notificationDelegate = delegate

@@ -19,6 +19,14 @@ extension Color {
 }
 
 
+/// The set of moods a user can log.
+///
+/// `Codable` conformance is REQUIRED by SwiftData's `@Model` macro to synthesize
+/// the persisted-property accessors for `MoodEntry.moodState`; removing it breaks
+/// compilation. Because the enum is `String`-backed it is stored as its raw value
+/// (not via a value transformer), so it does not cause the benign
+/// `NSKeyedUnarchiveFromData` console warning — that comes from the CloudKit
+/// store's internal metadata. See `HowYouDoing_App.init()`.
 enum MoodState: String, Codable, Equatable, CaseIterable {
     case great
     case good

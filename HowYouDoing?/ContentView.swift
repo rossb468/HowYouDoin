@@ -9,8 +9,6 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
-private let detentEpsilon: CGFloat = 1
-
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
@@ -137,12 +135,18 @@ struct ContentView: View {
     }
 
     private var sheetDetents: Set<PresentationDetent> {
+        // While awaiting a mood entry, lock the sheet to the tall height so it
+        // can't be dragged down and clip the prompt buttons.
+        if pendingMoodPrompt {
+            return tallHeight > 0 ? [.height(tallHeight)] : [.large]
+        }
+
+        // Resting state: only the compact height and the full settings height.
+        // The tall prompt height is deliberately excluded so the panel can't be
+        // dragged up to it manually — it's reachable only when a prompt is active.
         var detents: Set<PresentationDetent> = [.large]
         if collapsedHeight > 0 {
             detents.insert(.height(collapsedHeight))
-        }
-        if tallHeight > 0 && abs(tallHeight - collapsedHeight) > detentEpsilon {
-            detents.insert(.height(tallHeight))
         }
         return detents
     }
