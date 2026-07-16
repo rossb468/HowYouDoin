@@ -12,8 +12,17 @@ struct AnalyticsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
 
+    @State private var showGraph = false
+
     private var sortedEntries: [MoodEntry] {
         moodEntries.sorted { $0.date < $1.date }
+    }
+
+    /// One point per mood entry, ordered oldest-first, for the mood-over-time graph.
+    private var moodPoints: [MoodPoint] {
+        sortedEntries.map {
+            MoodPoint(id: $0.id, date: $0.date, value: $0.moodState.numericValue, mood: $0.moodState)
+        }
     }
 
     var body: some View {
@@ -31,7 +40,7 @@ struct AnalyticsView: View {
                         summaryCards
                         weekOverWeekCard
                         moodDistributionChart
-                        weeklyTrendChart
+                        moodOverTimeChart
                         dayOfWeekChart
                         timeOfDayChart
                         streakCard
@@ -47,6 +56,9 @@ struct AnalyticsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+        .sheet(isPresented: $showGraph) {
+            MoodGraphSheet(points: moodPoints)
         }
     }
 
@@ -162,59 +174,31 @@ struct AnalyticsView: View {
         }
     }
 
-    // MARK: - Weekly Trend (last 8 weeks)
+    // MARK: - Mood Over Time
 
-    private var weeklyTrendChart: some View {
-        let calendar = Calendar.current
-        let now = Date()
-        let eightWeeksAgo = calendar.date(byAdding: .weekOfYear, value: -8, to: now)!
-        let recent = sortedEntries.filter { $0.date >= eightWeeksAgo }
+    private var moodOverTimeChart: some View {
+        let points = moodPoints
 
-        let weeklyAverages: [WeekAverage] = {
-            let grouped = Dictionary(grouping: recent) { entry in
-                calendar.dateInterval(of: .weekOfYear, for: entry.date)?.start ?? entry.date
-            }
-            return grouped.map { weekStart, entries in
-                let avg = entries.map { $0.moodState.numericValue }.reduce(0.0, +) / Double(entries.count)
-                return WeekAverage(weekStart: weekStart, average: avg)
-            }
-            .sorted { $0.weekStart < $1.weekStart }
-        }()
-
-        return ChartCard(title: "Weekly Mood Trend") {
-            if weeklyAverages.count < 2 {
-                Text("Need at least 2 weeks of data")
+        return ChartCard(title: "Mood Over Time") {
+            if points.count < 2 {
+                Text("Need at least 2 entries")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(height: 180)
             } else {
-                Chart(weeklyAverages) { week in
-                    LineMark(
-                        x: .value("Week", week.weekStart, unit: .weekOfYear),
-                        y: .value("Avg", week.average)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.moodBlue)
+                VStack(alignment: .leading, spacing: 6) {
+                    MoodTimelineChart(points: points, visibleDays: 14)
+                        .frame(height: 180)
 
-                    PointMark(
-                        x: .value("Week", week.weekStart, unit: .weekOfYear),
-                        y: .value("Avg", week.average)
-                    )
-                    .foregroundStyle(Color.moodBlue)
+                    Label("Tap to view full screen", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-                .chartYScale(domain: 1...5)
-                .chartYAxis {
-                    AxisMarks(values: [1, 2, 3, 4, 5]) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let v = value.as(Int.self) {
-                                Text(MoodState.fromNumeric(v).emoji)
-                                    .font(.system(size: 12))
-                            }
-                        }
-                    }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    triggerHaptic()
+                    showGraph = true
                 }
-                .frame(height: 180)
             }
         }
     }
@@ -355,10 +339,33 @@ private struct MoodCount: Identifiable {
     var id: String { mood.rawValue }
 }
 
-private struct WeekAverage: Identifiable {
-    let weekStart: Date
-    let average: Double
-    var id: Date { weekStart }
+private struct MoodPoint: Identifiable {
+    let id: PersistentIdentifier
+    let date: Date
+    let value: Double
+    let mood: MoodState
+}
+
+private struct MoodSegment: Identifiable {
+    let id: Int
+    let start: MoodPoint
+    let end: MoodPoint
+
+    var endpoints: [MoodPoint] { [start, end] }
+
+    /// Leading→trailing gradient (leading = earlier entry) through every mood
+    /// color between the two endpoints. Same-color moods yield a solid line;
+    /// endpoints two or more positions apart pass through each intermediate mood
+    /// color (e.g. terrible→great runs terrible·bad·neutral·good·great).
+    var gradient: LinearGradient {
+        let startV = Int(start.value.rounded())
+        let endV = Int(end.value.rounded())
+        let sequence: [Int] = startV <= endV
+            ? Array(startV...endV)
+            : Array(stride(from: startV, through: endV, by: -1))
+        let colors = sequence.map { MoodState.fromNumeric($0).color }
+        return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
+    }
 }
 
 private struct DayCount: Identifiable {
@@ -374,6 +381,123 @@ private struct HourBucket: Identifiable {
     let label: String
     let count: Int
     var id: Int { hour }
+}
+
+// MARK: - Mood Timeline Chart
+
+/// A line-and-point graph of individual mood entries over time. Horizontally
+/// scrollable; the visible window is capped at `visibleDays` so the graph only
+/// scrolls when the data spans more time than fits on screen.
+private struct MoodTimelineChart: View {
+    let points: [MoodPoint]
+    let visibleDays: Int
+
+    /// Visible window in seconds, clamped to the data's span so short histories
+    /// fill the width instead of being squeezed against the leading edge.
+    private var visibleLength: TimeInterval {
+        let requested = TimeInterval(visibleDays) * 86_400
+        guard let first = points.first?.date, let last = points.last?.date else { return requested }
+        let span = last.timeIntervalSince(first)
+        return span > 0 ? min(requested, span) : requested
+    }
+
+    private var initialScrollX: Date {
+        guard let last = points.last?.date else { return Date() }
+        return last.addingTimeInterval(-visibleLength)
+    }
+
+    private var strideDays: Int {
+        max(Int((visibleLength / 86_400).rounded()) / 6, 1)
+    }
+
+    /// Adjacent pairs of points, each drawn as its own line segment so it can be
+    /// tinted independently.
+    private var segments: [MoodSegment] {
+        guard points.count > 1 else { return [] }
+        return (0..<(points.count - 1)).map { i in
+            MoodSegment(id: i, start: points[i], end: points[i + 1])
+        }
+    }
+
+    var body: some View {
+        Chart {
+            // Each segment is its own series so it draws as an isolated line and
+            // can carry its own color/gradient.
+            ForEach(segments) { segment in
+                ForEach(segment.endpoints) { node in
+                    LineMark(
+                        x: .value("Date", node.date),
+                        y: .value("Mood", node.value),
+                        series: .value("Segment", segment.id)
+                    )
+                    .interpolationMethod(.linear)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .foregroundStyle(segment.gradient)
+                }
+            }
+
+            ForEach(points) { point in
+                PointMark(
+                    x: .value("Date", point.date),
+                    y: .value("Mood", point.value)
+                )
+                .foregroundStyle(point.mood.color)
+                .symbolSize(50)
+            }
+        }
+        // Pad the vertical scale beyond 1...5 so the top and bottom lines aren't
+        // flush against the plot edges.
+        .chartYScale(domain: 0.5...5.5)
+        .chartYAxis {
+            AxisMarks(values: [1, 2, 3, 4, 5]) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let v = value.as(Int.self) {
+                        Text(MoodState.fromNumeric(v).emoji)
+                            .font(.system(size: 12))
+                    }
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day, count: strideDays)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+            }
+        }
+        .chartScrollableAxes(.horizontal)
+        .chartXVisibleDomain(length: visibleLength)
+        .chartScrollPosition(initialX: initialScrollX)
+    }
+}
+
+// MARK: - Full-Screen Graph (slide-up)
+
+/// The mood-over-time graph presented as a slide-up sheet. The app stays locked
+/// in portrait; the graph is rotated 90° and sized to the screen's swapped
+/// dimensions so it reads as landscape when the device is turned sideways. The
+/// sheet's drag indicator is the standard control for dismissing it.
+private struct MoodGraphSheet: View {
+    let points: [MoodPoint]
+
+    var body: some View {
+        GeometryReader { geo in
+            VStack(spacing: 8) {
+                Text("Mood Over Time")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+
+                MoodTimelineChart(points: points, visibleDays: 30)
+            }
+            .padding(20)
+            // Lay out at landscape dimensions (width/height swapped), then
+            // rotate into the portrait sheet and re-center.
+            .frame(width: geo.size.height, height: geo.size.width)
+            .rotationEffect(.degrees(90))
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
 }
 
 // MARK: - Reusable Components

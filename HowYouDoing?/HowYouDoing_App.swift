@@ -9,9 +9,24 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 import OSLog
+import UIKit
+
+/// Locks the app to portrait at all times. The mood graph presents itself in a
+/// landscape layout by rotating its own view, not by rotating the interface, so
+/// the app never needs any other orientation.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        supportedInterfaceOrientationsFor window: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        .portrait
+    }
+}
 
 @main
 struct HowYouDoing_App: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     /// Logger used to annotate persistence events in the console.
     private static let persistenceLog = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "HowYouDoing",
