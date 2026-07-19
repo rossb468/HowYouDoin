@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 import CoreData
 
 @Observable
@@ -33,6 +34,11 @@ final class CloudSyncMonitor {
 
 /// Inline settings content designed to be embedded above the main content
 /// in a ScrollView. The user reveals it by pulling down from the top.
+///
+/// Because a real `Form`/`List` can't be nested inside the mood panel's scroll
+/// view without breaking the pull-up behavior, the grouped-list appearance is
+/// reproduced with `SettingsSection`/row helpers using the system grouped
+/// colors, fonts, and standard `Toggle`/`Picker`/menu controls.
 struct InlineSettingsContent: View {
     let onImportCSV: () -> Void
     let onDeleteAll: () -> Void
@@ -57,18 +63,91 @@ struct InlineSettingsContent: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Pull indicator
+        VStack(spacing: 18) {
+            header
+
+            SettingsSection {
+                SettingsNavigationRow(title: "Analytics", systemImage: "chart.bar.xaxis") {
+                    triggerHaptic()
+                    showAnalytics = true
+                }
+            }
+
+            InlineRemindersSection(reminders: reminders)
+
+            SettingsSection(title: "Notifications") {
+                Toggle("Open App on Mood Response", isOn: $openAppOnMoodAction)
+                    .settingsRow()
+                    .onChange(of: openAppOnMoodAction) {
+                        NotificationManager.registerCategory()
+                    }
+            }
+
+            SettingsSection(title: "Calendar") {
+                SettingsPickerRow(title: "Week Starts On", selection: $weekStartDay) {
+                    Text("Sunday").tag(1)
+                    Text("Monday").tag(2)
+                    Text("Tuesday").tag(3)
+                    Text("Wednesday").tag(4)
+                    Text("Thursday").tag(5)
+                    Text("Friday").tag(6)
+                    Text("Saturday").tag(7)
+                }
+            }
+
+            SettingsSection(title: "Encouragement") {
+                SettingsPickerRow(title: "Check-in Prompts", selection: $encouragementFrequencyRaw) {
+                    ForEach(EncouragementFrequency.allCases, id: \.rawValue) { freq in
+                        Text(freq.displayString).tag(freq.rawValue)
+                    }
+                }
+            }
+
+            SettingsSection(title: "Data") {
+                SettingsNavigationRow(title: "Import from CSV", systemImage: "square.and.arrow.down") {
+                    triggerHaptic()
+                    onImportCSV()
+                }
+                SettingsRowDivider()
+                SettingsActionRow(title: "Delete All Moods", systemImage: "trash", role: .destructive) {
+                    triggerHaptic()
+                    onDeleteAll()
+                }
+            }
+
+            #if DEBUG
+            SettingsSection(title: "Debug", titleColor: .orange) {
+                Toggle("Show Welcome on Launch", isOn: $debugAlwaysShowWelcome)
+                    .settingsRow()
+                SettingsRowDivider()
+                SettingsNavigationRow(
+                    title: "Send Test Reminder (1 min)",
+                    systemImage: "bell.and.waves.left.and.right",
+                    showChevron: false
+                ) {
+                    triggerHaptic()
+                    NotificationManager.scheduleDebugReminder()
+                }
+            }
+            #endif
+
+            Spacer(minLength: 16)
+        }
+        .padding(.top, 12)
+        .sheet(isPresented: $showAnalytics) {
+            AnalyticsView()
+        }
+    }
+
+    private var header: some View {
+        VStack(spacing: 4) {
             Capsule()
                 .fill(.secondary.opacity(0.4))
                 .frame(width: 36, height: 5)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+                .padding(.bottom, 4)
 
             Text("Settings")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.bottom, 4)
 
             HStack(spacing: 4) {
                 Image(systemName: "icloud")
@@ -81,199 +160,135 @@ struct InlineSettingsContent: View {
             }
             .font(.system(size: 12))
             .foregroundStyle(.secondary)
-            .padding(.bottom, 12)
-
-            // Analytics button
-            Button {
-                triggerHaptic()
-                showAnalytics = true
-            } label: {
-                Label("Analytics", systemImage: "chart.bar.xaxis")
-                    .font(.body)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 14)
-            }
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
-
-            // Reminders section
-            InlineRemindersSection(reminders: reminders)
-                .padding(.bottom, 12)
-
-            // Notification behavior
-            Toggle("Open App on Mood Response", isOn: $openAppOnMoodAction)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-                .onChange(of: openAppOnMoodAction) {
-                    NotificationManager.registerCategory()
-                }
-
-            // Calendar section
-            VStack(spacing: 0) {
-                Text("Calendar")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 6)
-
-                HStack {
-                    Text("Week Starts On")
-                        .font(.body)
-                    Spacer()
-                    Picker("Week Starts On", selection: $weekStartDay) {
-                        Text("Sunday").tag(1)
-                        Text("Monday").tag(2)
-                        Text("Tuesday").tag(3)
-                        Text("Wednesday").tag(4)
-                        Text("Thursday").tag(5)
-                        Text("Friday").tag(6)
-                        Text("Saturday").tag(7)
-                    }
-                    .labelsHidden()
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .padding(.horizontal, 16)
-            }
-            .padding(.bottom, 12)
-
-            // Encouragement section
-            VStack(spacing: 0) {
-                Text("Encouragement")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 6)
-
-                HStack {
-                    Text("Check-in Prompts")
-                        .font(.body)
-                    Spacer()
-                    Picker("Check-in Prompts", selection: $encouragementFrequencyRaw) {
-                        ForEach(EncouragementFrequency.allCases, id: \.rawValue) { freq in
-                            Text(freq.displayString).tag(freq.rawValue)
-                        }
-                    }
-                    .labelsHidden()
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .padding(.horizontal, 16)
-            }
-            .padding(.bottom, 12)
-
-            // Data section
-            VStack(spacing: 0) {
-                Text("Data")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 6)
-
-                VStack(spacing: 0) {
-                    Button {
-                        triggerHaptic()
-                        onImportCSV()
-                    } label: {
-                        Label("Import from CSV", systemImage: "square.and.arrow.down")
-                            .font(.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 14)
-                    }
-
-                    Divider()
-                        .padding(.leading, 18)
-
-                    Button(role: .destructive) {
-                        triggerHaptic()
-                        onDeleteAll()
-                    } label: {
-                        Label("Delete All Moods", systemImage: "trash")
-                            .font(.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 14)
-                    }
-                }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .padding(.horizontal, 16)
-            }
-
-            #if DEBUG
-            // Debug section
-            VStack(spacing: 0) {
-                Text("Debug")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.orange)
-                    .textCase(.uppercase)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 6)
-
-                VStack(spacing: 0) {
-                    Toggle("Show Welcome on Launch", isOn: $debugAlwaysShowWelcome)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 14)
-
-                    Divider()
-                        .padding(.leading, 18)
-
-                    Button {
-                        triggerHaptic()
-                        NotificationManager.scheduleDebugReminder()
-                    } label: {
-                        Label("Send Test Reminder (1 min)", systemImage: "bell.and.waves.left.and.right")
-                            .font(.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 14)
-                    }
-                }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .padding(.horizontal, 16)
-            }
-            .padding(.top, 12)
-            #endif
-
-            Spacer()
-                .frame(height: 16)
-        }
-        .sheet(isPresented: $showAnalytics) {
-            AnalyticsView()
         }
     }
 }
 
-/// Inline reminders section styled to match inline settings.
-/// Uses a standard List with swipe-to-delete and tap-to-edit.
+// MARK: - System-styled Settings Building Blocks
+
+private extension View {
+    /// Standard grouped-row metrics: horizontal inset and a 44pt minimum height.
+    func settingsRow() -> some View {
+        self
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+    }
+}
+
+/// A titled group of rows styled like an inset-grouped list section.
+private struct SettingsSection<Content: View>: View {
+    var title: String? = nil
+    var titleColor: Color = .secondary
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let title {
+                Text(title)
+                    .font(.footnote)
+                    .foregroundStyle(titleColor)
+                    .textCase(.uppercase)
+                    .padding(.leading, 16)
+            }
+
+            VStack(spacing: 0) {
+                content
+            }
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+        }
+        .padding(.horizontal, 16)
+    }
+}
+
+/// Separator between rows within a section, inset to align with the row label.
+private struct SettingsRowDivider: View {
+    var body: some View {
+        Divider()
+            .padding(.leading, 16)
+    }
+}
+
+/// A tappable row with a leading label and an optional trailing chevron.
+private struct SettingsNavigationRow: View {
+    let title: String
+    let systemImage: String
+    var showChevron: Bool = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                if showChevron {
+                    Image(systemName: "chevron.forward")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .settingsRow()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// An action row (e.g. destructive) whose label adopts the button role color.
+private struct SettingsActionRow: View {
+    let title: String
+    let systemImage: String
+    var role: ButtonRole? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(role: role, action: action) {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .settingsRow()
+                .contentShape(Rectangle())
+        }
+    }
+}
+
+/// A row with a leading title and a trailing pop-up menu picker, matching the
+/// inline menu pickers used in the system Settings app.
+private struct SettingsPickerRow<SelectionValue: Hashable, Content: View>: View {
+    let title: String
+    @Binding var selection: SelectionValue
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Picker(title, selection: $selection) {
+                content
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .tint(.secondary)
+        }
+        .settingsRow()
+    }
+}
+
+/// Inline reminders section using a scroll-disabled List for native
+/// swipe-to-delete and tap-to-edit, styled to match the other sections.
 private struct InlineRemindersSection: View {
     @Binding var reminders: [Reminder]
     @State private var editingReminder: Reminder?
     @State private var showAddSheet = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Reminders")
-                .font(.subheadline.weight(.medium))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 6)
+                .padding(.leading, 16)
 
             List {
                 ForEach(reminders) { reminder in
@@ -303,17 +318,19 @@ private struct InlineRemindersSection: View {
                     showAddSheet = true
                 } label: {
                     Label("Add Reminder", systemImage: "plus.circle.fill")
-                        .font(.body)
                 }
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollDisabled(true)
-            .frame(height: CGFloat(max(reminders.count, 0)) * 60 + 48)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .padding(.horizontal, 16)
+            .frame(height: CGFloat(max(reminders.count, 0)) * 60 + 52)
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
         }
+        .padding(.horizontal, 16)
         .sheet(isPresented: $showAddSheet) {
             ReminderEditorSheet(mode: .add) { newReminder in
                 reminders.append(newReminder)
@@ -354,8 +371,8 @@ private struct ReminderRow: View {
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.subheadline.weight(.semibold))
+            Image(systemName: "chevron.forward")
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 10)
