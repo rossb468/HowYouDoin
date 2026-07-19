@@ -82,7 +82,10 @@ struct HowYouDoing_App: App {
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("reminders") private var remindersJSON: String = "[]"
+    @AppStorage("appTheme") private var appThemeRaw = AppTheme.standard.rawValue
     @Environment(\.scenePhase) private var scenePhase
+
+    private var theme: AppTheme { AppTheme(rawValue: appThemeRaw) ?? .standard }
 
     var body: some Scene {
         WindowGroup {
@@ -93,6 +96,10 @@ struct HowYouDoing_App: App {
                     WelcomeView()
                 }
             }
+            // Global themed accent + wash; reading `theme` re-renders the whole
+            // app when the selection changes.
+            .tint(theme.palette.accent)
+            .background(theme.palette.background.ignoresSafeArea())
             #if DEBUG
             .task {
                 if UserDefaults.standard.bool(forKey: "debug_alwaysShowWelcome") {

@@ -50,6 +50,7 @@ struct InlineSettingsContent: View {
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("encouragementFrequency") private var encouragementFrequencyRaw: String = EncouragementFrequency.onceADay.rawValue
     @AppStorage("openAppOnMoodAction") private var openAppOnMoodAction = false
+    @AppStorage("appTheme") private var appThemeRaw = AppTheme.standard.rawValue
 
     #if DEBUG
     @AppStorage("debug_alwaysShowWelcome") private var debugAlwaysShowWelcome = false
@@ -70,6 +71,14 @@ struct InlineSettingsContent: View {
                 SettingsNavigationRow(title: "Analytics", systemImage: "chart.bar.xaxis") {
                     triggerHaptic()
                     showAnalytics = true
+                }
+            }
+
+            SettingsSection(title: "Appearance") {
+                SettingsPickerRow(title: "Theme", selection: $appThemeRaw) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Text(theme.displayName).tag(theme.rawValue)
+                    }
                 }
             }
 
@@ -134,6 +143,8 @@ struct InlineSettingsContent: View {
             Spacer(minLength: 16)
         }
         .padding(.top, 12)
+        // Themed primary text throughout for strong contrast on the fields.
+        .foregroundStyle(Color.themeTextOnField)
         .sheet(isPresented: $showAnalytics) {
             AnalyticsView()
         }
@@ -143,6 +154,7 @@ struct InlineSettingsContent: View {
         VStack(spacing: 4) {
             Text("Settings")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.themeTextOnBackground)
 
             HStack(spacing: 4) {
                 Image(systemName: "icloud")
@@ -154,7 +166,7 @@ struct InlineSettingsContent: View {
                 }
             }
             .font(.system(size: 12))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.themeTextOnBackground)
         }
     }
 }
@@ -173,7 +185,7 @@ private extension View {
 /// A titled group of rows styled like an inset-grouped list section.
 private struct SettingsSection<Content: View>: View {
     var title: String? = nil
-    var titleColor: Color = .secondary
+    var titleColor: Color = .themeTextOnBackground
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -190,8 +202,12 @@ private struct SettingsSection<Content: View>: View {
                 content
             }
             .background(
-                Color(.secondarySystemGroupedBackground),
+                Color.themeGroupedBackground,
                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.themeFieldBorder, lineWidth: 1)
             )
         }
         .padding(.horizontal, 16)
@@ -241,6 +257,7 @@ private struct SettingsActionRow: View {
     var body: some View {
         Button(role: role, action: action) {
             Label(title, systemImage: systemImage)
+                .foregroundStyle(role == .destructive ? Color.red : Color.themeTextOnField)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .settingsRow()
                 .contentShape(Rectangle())
@@ -264,7 +281,7 @@ private struct SettingsPickerRow<SelectionValue: Hashable, Content: View>: View 
             }
             .labelsHidden()
             .pickerStyle(.menu)
-            .tint(.secondary)
+            .tint(Color.themeTextOnFieldSecondary)
         }
         .settingsRow()
     }
@@ -281,7 +298,7 @@ private struct InlineRemindersSection: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Reminders")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.themeTextOnBackground)
                 .textCase(.uppercase)
                 .padding(.leading, 16)
 
@@ -321,8 +338,12 @@ private struct InlineRemindersSection: View {
             .scrollDisabled(true)
             .frame(height: CGFloat(max(reminders.count, 0)) * 60 + 52)
             .background(
-                Color(.secondarySystemGroupedBackground),
+                Color.themeGroupedBackground,
                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.themeFieldBorder, lineWidth: 1)
             )
         }
         .padding(.horizontal, 16)
@@ -358,9 +379,10 @@ private struct ReminderRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(reminder.timeString)
                     .font(.body.weight(.medium))
+                    .foregroundStyle(Color.themeTextOnField)
                 Text(reminder.body)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.themeTextOnFieldSecondary)
                     .lineLimit(1)
             }
 
@@ -431,16 +453,23 @@ struct ReminderEditorSheet: View {
             Form {
                 Section {
                     DatePicker("Time", selection: $selectedTime, displayedComponents: .hourAndMinute)
+                        .foregroundStyle(Color.themeTextOnField)
+                        .listRowBackground(Color.themeGroupedBackground)
                 }
 
                 Section {
                     TextField("Message", text: $bodyText)
+                        .foregroundStyle(Color.themeTextOnField)
+                        .listRowBackground(Color.themeGroupedBackground)
                 }
 
                 Section {
                     Toggle("Enabled", isOn: $isEnabled)
+                        .foregroundStyle(Color.themeTextOnField)
+                        .listRowBackground(Color.themeGroupedBackground)
                 }
             }
+            .themedScrollBackground()
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -17,6 +17,9 @@ struct ContentView: View {
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("pendingMoodPrompt") private var pendingMoodPrompt = false
+    @AppStorage("appTheme") private var appThemeRaw = AppTheme.standard.rawValue
+
+    private var theme: AppTheme { AppTheme(rawValue: appThemeRaw) ?? .standard }
 
     @State private var showDeleteConfirmation = false
     @State private var showImportFlow = false
@@ -80,6 +83,10 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.3), value: showTallPanel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Themed wash + accent. Reading `theme` here ties the whole view tree's
+        // re-render to the selected theme, so switching recolors everything live.
+        .background(theme.palette.background.ignoresSafeArea())
+        .tint(theme.palette.accent)
         .alert("Delete All Moods?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete All Moods", role: .destructive) {
@@ -177,8 +184,13 @@ struct ContentView: View {
         .presentationDragIndicator(.hidden)
         .presentationBackgroundInteraction(.enabled(upThrough: .height(collapsedHeight)))
         .presentationBackground {
-            Color.clear
-                .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            if theme.palette.panelGlassTint == .clear {
+                Color.clear
+                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            } else {
+                Color.clear
+                    .glassEffect(.regular.tint(theme.palette.panelGlassTint), in: .rect(cornerRadius: 24))
+            }
         }
         .interactiveDismissDisabled()
     }
@@ -189,10 +201,10 @@ struct ContentView: View {
     /// content so its height is included in the measured detent heights.
     private var panelGrabber: some View {
         Capsule()
-            // Opaque fixed gray so the handle keeps a consistent, high-contrast
+            // Opaque themed fill so the handle keeps a consistent, high-contrast
             // appearance instead of shifting with whatever shows through the
             // glass as the panel moves.
-            .fill(Color(.systemGray2))
+            .fill(Color.themeGrabber)
             .frame(width: 40, height: 5)
     }
 
@@ -204,6 +216,7 @@ struct ContentView: View {
 
             Text("How You Doin'?")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color.themeTextOnBackground)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.bottom, 4)
 

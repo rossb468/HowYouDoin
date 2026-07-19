@@ -29,12 +29,13 @@ struct WelcomeView: View {
 
                 Text("How You Doin'?")
                     .font(.largeTitle.bold())
+                    .foregroundStyle(Color.themeTextOnBackground)
 
                 Text(showReminderSetup
                      ? "Set up a daily reminder\nto check in with yourself."
                      : "Track your mood every day.\nWe can remind you to check in.")
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.themeTextOnBackground.opacity(0.85))
                     .multilineTextAlignment(.center)
             }
 
@@ -42,6 +43,7 @@ struct WelcomeView: View {
                 // Inline reminder editor
                 VStack(spacing: 0) {
                     DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                        .foregroundStyle(Color.themeTextOnField)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 14)
 
@@ -50,15 +52,16 @@ struct WelcomeView: View {
 
                     HStack {
                         Text("Message")
+                            .foregroundStyle(Color.themeTextOnField)
                         Spacer()
                         TextField("How are you?", text: $reminderMessage)
                             .multilineTextAlignment(.trailing)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.themeTextOnFieldSecondary)
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 14)
                 }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .background(Color.themeGroupedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .padding(.horizontal, 24)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -151,6 +154,7 @@ struct WelcomeView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
+        .background(Color.themeBackground.ignoresSafeArea())
         .alert("Notifications Disabled", isPresented: $showPermissionDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {

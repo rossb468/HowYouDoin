@@ -33,7 +33,9 @@ struct AnalyticsView: View {
                         "No Mood Data",
                         systemImage: "chart.bar",
                         description: Text("Start logging moods to see your analytics.")
+                            .foregroundStyle(Color.themeTextOnFieldSecondary)
                     )
+                    .foregroundStyle(Color.themeTextOnField)
                     .padding(.top, 60)
                 } else {
                     VStack(spacing: 20) {
@@ -49,6 +51,8 @@ struct AnalyticsView: View {
                     .padding(.vertical, 20)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.themeBackground.ignoresSafeArea())
             .navigationTitle("Analytics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -138,9 +142,10 @@ struct AnalyticsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(summary)
                         .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.themeTextOnField)
                     Text("\(thisWeek.count) entr\(thisWeek.count == 1 ? "y" : "ies") this week · \(lastWeek.count) last week")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.themeTextOnFieldSecondary)
                 }
 
                 Spacer()
@@ -183,7 +188,7 @@ struct AnalyticsView: View {
             if points.count < 2 {
                 Text("Need at least 2 entries")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.themeTextOnFieldSecondary)
                     .frame(height: 180)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
@@ -192,7 +197,7 @@ struct AnalyticsView: View {
 
                     Label("Tap to view full screen", systemImage: "arrow.up.left.and.arrow.down.right")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.themeTextOnFieldSecondary)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -485,6 +490,7 @@ private struct MoodGraphSheet: View {
             VStack(spacing: 8) {
                 Text("Mood Over Time")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.themeTextOnBackground)
 
                 MoodTimelineChart(points: points, visibleDays: 30)
             }
@@ -495,6 +501,7 @@ private struct MoodGraphSheet: View {
             .rotationEffect(.degrees(90))
             .frame(width: geo.size.width, height: geo.size.height)
         }
+        .background(Color.themeBackground.ignoresSafeArea())
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
@@ -511,13 +518,14 @@ private struct StatCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Label(title, systemImage: icon)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.themeTextOnFieldSecondary)
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.themeTextOnField)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.themeGroupedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -529,11 +537,12 @@ private struct ChartCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.themeTextOnField)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color.themeGroupedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

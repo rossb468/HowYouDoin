@@ -142,7 +142,7 @@ struct MonthDividerView: View {
             line
             Text(label)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.themeTextOnBackground)
                 .fixedSize()
             line
         }
@@ -152,7 +152,7 @@ struct MonthDividerView: View {
 
     private var line: some View {
         Rectangle()
-            .fill(.secondary.opacity(0.3))
+            .fill(Color.themeTextOnBackground.opacity(0.3))
             .frame(height: 1)
     }
 }

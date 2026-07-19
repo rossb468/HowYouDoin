@@ -48,24 +48,36 @@ struct MoodEditorSheet: View {
                 }
 
                 // Mood picker
-                Section("Mood") {
+                Section {
                     moodPicker
+                        .listRowBackground(Color.themeGroupedBackground)
+                } header: {
+                    Text("Mood")
+                        .foregroundStyle(Color.themeTextOnBackground)
                 }
 
                 // Date & time pickers
-                Section("Date & Time") {
+                Section {
                     DatePicker(
                         "Date",
                         selection: $selectedDate,
                         displayedComponents: .date
                     )
+                    .foregroundStyle(Color.themeTextOnField)
+                    .listRowBackground(Color.themeGroupedBackground)
                     DatePicker(
                         "Time",
                         selection: $selectedDate,
                         displayedComponents: .hourAndMinute
                     )
+                    .foregroundStyle(Color.themeTextOnField)
+                    .listRowBackground(Color.themeGroupedBackground)
+                } header: {
+                    Text("Date & Time")
+                        .foregroundStyle(Color.themeTextOnBackground)
                 }
             }
+            .themedScrollBackground()
             .navigationTitle("Edit Mood")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -85,8 +97,13 @@ struct MoodEditorSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationBackground {
-            Color.clear
-                .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            if AppTheme.current.palette.panelGlassTint == .clear {
+                Color.clear
+                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            } else {
+                Color.clear
+                    .glassEffect(.regular.tint(AppTheme.current.palette.panelGlassTint), in: .rect(cornerRadius: 24))
+            }
         }
     }
 

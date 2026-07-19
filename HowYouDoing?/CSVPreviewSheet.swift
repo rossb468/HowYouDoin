@@ -68,15 +68,16 @@ struct CSVImportFlow: View {
             VStack(spacing: 24) {
                 Image(systemName: "doc.text")
                     .font(.system(size: 56))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.themeTextOnBackground)
                     .padding(.top, 40)
 
                 Text("Import from CSV")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.themeTextOnBackground)
 
                 VStack(alignment: .leading, spacing: 16) {
                     Text("This imports mood data from a Daylio CSV export. The file must contain these columns:")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.themeTextOnBackground.opacity(0.85))
 
                     VStack(alignment: .leading, spacing: 8) {
                         formatRow(column: "full_date", example: "2026-03-21")
@@ -85,11 +86,11 @@ struct CSVImportFlow: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Color.themeGroupedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                     Text("To export from Daylio, go to Settings > Export > CSV.")
                         .font(.subheadline)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.themeTextOnBackground.opacity(0.7))
                 }
                 .padding(.horizontal, 24)
 
@@ -107,6 +108,7 @@ struct CSVImportFlow: View {
             }
             .padding(.bottom, 40)
         }
+        .themedScrollBackground()
         .navigationTitle("Import")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -115,9 +117,10 @@ struct CSVImportFlow: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(column)
                 .font(.system(.subheadline, design: .monospaced).weight(.semibold))
+                .foregroundStyle(Color.themeTextOnField)
             Text(example)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.themeTextOnFieldSecondary)
         }
     }
 
@@ -133,9 +136,10 @@ struct CSVImportFlow: View {
 
             Text("Invalid File")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.themeTextOnBackground)
 
             Text(parseErrorMessage)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.themeTextOnBackground.opacity(0.85))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
@@ -152,6 +156,8 @@ struct CSVImportFlow: View {
 
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.themeBackground.ignoresSafeArea())
         .navigationTitle("Import")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -235,6 +241,7 @@ private struct CSVPreviewView: View {
                 VStack(spacing: 8) {
                     Text("\(entries.count) moods found")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.themeTextOnBackground)
 
                     if duplicateCount > 0 {
                         Text("\(duplicateCount) duplicate\(duplicateCount == 1 ? "" : "s") already in your data")
@@ -253,6 +260,8 @@ private struct CSVPreviewView: View {
                 Section {
                     Toggle("Show Duplicates Only", isOn: $showDuplicatesOnly)
                         .tint(.orange)
+                        .foregroundStyle(Color.themeTextOnField)
+                        .listRowBackground(Color.themeGroupedBackground)
                 }
             }
 
@@ -269,6 +278,7 @@ private struct CSVPreviewView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 4)
                 }
+                .listRowBackground(Color.themeGroupedBackground)
 
                 if duplicateCount > 0 {
                     Button {
@@ -282,6 +292,7 @@ private struct CSVPreviewView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 4)
                     }
+                    .listRowBackground(Color.themeGroupedBackground)
                 }
             }
 
@@ -289,7 +300,7 @@ private struct CSVPreviewView: View {
             Section {
                 if showDuplicatesOnly && duplicateCount == 0 {
                     Text("No duplicates found.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.themeTextOnBackground.opacity(0.85))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowBackground(Color.clear)
                 } else {
@@ -321,11 +332,12 @@ private struct CSVPreviewView: View {
             } header: {
                 Text(showDuplicatesOnly ? "Duplicates" : "Preview")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.themeTextOnBackground)
                     .textCase(.uppercase)
             }
         }
         .listStyle(.plain)
+        .themedScrollBackground()
         .navigationTitle("Import Preview")
         .navigationBarTitleDisplayMode(.inline)
     }

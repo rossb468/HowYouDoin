@@ -314,12 +314,12 @@ struct EncouragementBannerView: View {
         HStack(spacing: 12) {
             Image(systemName: result.icon)
                 .font(.system(size: 24))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.themeTextOnFieldSecondary)
                 .frame(width: 32)
 
             Text(result.message)
                 .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.themeTextOnField)
                 .multilineTextAlignment(.leading)
 
             Spacer()
@@ -327,7 +327,7 @@ struct EncouragementBannerView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: UnevenRoundedRectangle(
+        .background(Color.themeGroupedBackground, in: UnevenRoundedRectangle(
             topLeadingRadius: 20, bottomLeadingRadius: 0,
             bottomTrailingRadius: 0, topTrailingRadius: 20,
             style: .continuous

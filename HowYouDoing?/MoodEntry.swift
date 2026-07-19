@@ -6,16 +6,125 @@
 import Foundation
 import SwiftUI
 import SwiftData
+import UIKit
 
-// MARK: - App Color Palette
+// MARK: - Theming
+
+enum AppTheme: String, CaseIterable, Identifiable {
+    case standard
+    case pink
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .standard: return "Default"
+        case .pink:     return "Pink"
+        }
+    }
+
+    /// Active theme, resolved from persisted settings. The theme-aware `Color`
+    /// palette below reads this so any render reflects the current theme.
+    static var current: AppTheme {
+        AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .standard
+    }
+
+    var palette: ThemePalette {
+        switch self {
+        case .standard: return .standard
+        case .pink:     return .pink
+        }
+    }
+}
+
+/// Colors for every themed role in the app.
+struct ThemePalette {
+    // Mood colors, keyed to MoodState roles.
+    let great: Color
+    let good: Color
+    let neutral: Color
+    let bad: Color
+    let terrible: Color
+    // Shared UI roles.
+    let accent: Color
+    let background: Color
+    let groupedBackground: Color
+    let grabber: Color
+    /// Tint applied to the mood panel's glass. `.clear` means untinted glass.
+    let panelGlassTint: Color
+    // Text roles. `onBackground` sits over the pink page/panel; `onField`/
+    // `onFieldSecondary` sit over the light grouped fields.
+    let textOnBackground: Color
+    let textOnField: Color
+    let textOnFieldSecondary: Color
+    /// Hairline border around grouped fields. `.clear` means no border.
+    let fieldBorder: Color
+
+    static let standard = ThemePalette(
+        great:    Color(red: 0.10, green: 0.60, blue: 0.25),
+        good:     Color(red: 0.20, green: 0.78, blue: 0.35),
+        neutral:  Color(red: 0.00, green: 0.53, blue: 1.00),
+        bad:      Color(red: 1.00, green: 0.22, blue: 0.24),
+        terrible: Color(red: 0.85, green: 0.12, blue: 0.15),
+        accent:   Color(red: 0.00, green: 0.53, blue: 1.00),
+        background: Color(uiColor: .systemBackground),
+        groupedBackground: Color(uiColor: .secondarySystemGroupedBackground),
+        grabber: Color(uiColor: .systemGray2),
+        panelGlassTint: .clear,
+        textOnBackground: Color(uiColor: .label),
+        textOnField: Color(uiColor: .label),
+        textOnFieldSecondary: Color(uiColor: .secondaryLabel),
+        fieldBorder: .clear
+    )
+
+    /// Every role rendered as a distinct shade of pink. Text over the pink page
+    /// is white; text over the light grouped fields is dark pink.
+    static let pink = ThemePalette(
+        great:    Color(red: 0.86, green: 0.10, blue: 0.52),
+        good:     Color(red: 1.00, green: 0.44, blue: 0.71),
+        neutral:  Color(red: 0.99, green: 0.72, blue: 0.82),
+        bad:      Color(red: 0.82, green: 0.42, blue: 0.56),
+        terrible: Color(red: 0.49, green: 0.13, blue: 0.31),
+        accent:   Color(red: 0.78, green: 0.20, blue: 0.44),
+        background: Color(red: 0.97, green: 0.78, blue: 0.87),
+        groupedBackground: Color(red: 1.00, green: 0.96, blue: 0.98),
+        grabber: Color(red: 0.72, green: 0.32, blue: 0.48),
+        panelGlassTint: Color(red: 1.00, green: 0.72, blue: 0.83),
+        textOnBackground: .white,
+        textOnField: Color(red: 0.58, green: 0.09, blue: 0.33),
+        textOnFieldSecondary: Color(red: 0.64, green: 0.30, blue: 0.46),
+        fieldBorder: Color(red: 0.80, green: 0.42, blue: 0.58).opacity(0.35)
+    )
+}
+
+// MARK: - App Color Palette (theme-aware)
 
 extension Color {
-    static let moodGreen      = Color(red: 0.20, green: 0.78, blue: 0.35)  // #34C759
-    static let moodGreenDark  = Color(red: 0.10, green: 0.60, blue: 0.25)  // #1A9940
-    static let moodRed        = Color(red: 1.00, green: 0.22, blue: 0.24)  // #FF383C
-    static let moodRedDark    = Color(red: 0.85, green: 0.12, blue: 0.15)  // #D91F26
-    static let moodBlue       = Color(red: 0.00, green: 0.53, blue: 1.00)  // #0088FF
-    static let moodBlueDark   = Color(red: 0.00, green: 0.40, blue: 0.85)  // #0066D9
+    static var moodGreen: Color     { AppTheme.current.palette.good }
+    static var moodGreenDark: Color { AppTheme.current.palette.great }
+    static var moodRed: Color       { AppTheme.current.palette.bad }
+    static var moodRedDark: Color   { AppTheme.current.palette.terrible }
+    static var moodBlue: Color      { AppTheme.current.palette.neutral }
+    static var moodBlueDark: Color  { AppTheme.current.palette.accent }
+
+    static var themeAccent: Color            { AppTheme.current.palette.accent }
+    static var themeBackground: Color        { AppTheme.current.palette.background }
+    static var themeGroupedBackground: Color { AppTheme.current.palette.groupedBackground }
+    static var themeGrabber: Color           { AppTheme.current.palette.grabber }
+    static var themeTextOnBackground: Color     { AppTheme.current.palette.textOnBackground }
+    static var themeTextOnField: Color          { AppTheme.current.palette.textOnField }
+    static var themeTextOnFieldSecondary: Color { AppTheme.current.palette.textOnFieldSecondary }
+    static var themeFieldBorder: Color          { AppTheme.current.palette.fieldBorder }
+}
+
+extension View {
+    /// Hides the default scroll/grouped background and applies the themed page
+    /// wash. Use on the root of a screen or a List/Form so the theme shows through.
+    func themedScrollBackground() -> some View {
+        self
+            .scrollContentBackground(.hidden)
+            .background(Color.themeBackground.ignoresSafeArea())
+    }
 }
 
 
