@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import UIKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -182,14 +183,28 @@ struct ContentView: View {
         .interactiveDismissDisabled()
     }
 
+    // MARK: - Panel Grabber
+
+    /// Drag handle shown at the top of the mood panel. Lives inside the panel
+    /// content so its height is included in the measured detent heights.
+    private var panelGrabber: some View {
+        Capsule()
+            // Opaque fixed gray so the handle keeps a consistent, high-contrast
+            // appearance instead of shifting with whatever shows through the
+            // glass as the panel moves.
+            .fill(Color(.systemGray2))
+            .frame(width: 40, height: 5)
+    }
+
     // MARK: - Tall Panel (reminder triggered, awaiting mood entry)
 
     private var tallPanelContent: some View {
         VStack(spacing: 12) {
+            panelGrabber
+
             Text("How You Doin'?")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 12)
                 .padding(.bottom, 4)
 
             GlassEffectContainer(spacing: 8) {
@@ -219,7 +234,7 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 16)
+        .padding(.top, 8)
         .padding(.bottom, 16)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.height
@@ -233,10 +248,11 @@ struct ContentView: View {
 
     private var collapsedPanelContent: some View {
         VStack(spacing: 12) {
+            panelGrabber
+
             Text("How You Doin'?")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 4)
                 .padding(.bottom, 4)
 
             GlassEffectContainer(spacing: 8) {
@@ -264,7 +280,7 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 16)
+        .padding(.top, 8)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.height
         } action: { height in

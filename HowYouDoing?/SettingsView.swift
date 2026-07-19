@@ -141,11 +141,6 @@ struct InlineSettingsContent: View {
 
     private var header: some View {
         VStack(spacing: 4) {
-            Capsule()
-                .fill(.secondary.opacity(0.4))
-                .frame(width: 36, height: 5)
-                .padding(.bottom, 4)
-
             Text("Settings")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
 
