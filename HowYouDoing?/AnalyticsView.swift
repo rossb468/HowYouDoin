@@ -41,6 +41,7 @@ struct AnalyticsView: View {
                     VStack(spacing: 20) {
                         summaryCards
                         weekOverWeekCard
+                        moodBalanceChart
                         moodDistributionChart
                         moodOverTimeChart
                         dayOfWeekChart
@@ -150,6 +151,51 @@ struct AnalyticsView: View {
 
                 Spacer()
             }
+        }
+    }
+
+    // MARK: - Mood Balance (last 7 days)
+
+    private var moodBalanceChart: some View {
+        let calendar = Calendar.current
+        let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: Date())!
+        let recent = moodEntries.filter { $0.date > sevenDaysAgo }
+
+        let goodCount = recent.filter { $0.moodState == .great || $0.moodState == .good }.count
+        let badCount = recent.filter { $0.moodState == .bad || $0.moodState == .terrible }.count
+
+        let data = [
+            MoodBalance(label: "Good", count: goodCount, color: MoodState.good.color),
+            MoodBalance(label: "Bad", count: badCount, color: MoodState.bad.color)
+        ]
+
+        return ChartCard(title: "Mood Balance (7 Days)") {
+            Chart(data) { item in
+                BarMark(
+                    x: .value("Type", item.label),
+                    y: .value("Count", item.count)
+                )
+                .foregroundStyle(item.color)
+                .cornerRadius(6)
+                .annotation(position: .top) {
+                    Text("\(item.count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.themeTextOnFieldSecondary)
+                }
+            }
+            .chartXScale(domain: ["Good", "Bad"])
+            .chartYScale(domain: 0...Double(max(goodCount, badCount, 1)))
+            .chartYAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let v = value.as(Int.self) {
+                            Text("\(v)")
+                        }
+                    }
+                }
+            }
+            .frame(height: 180)
         }
     }
 
@@ -371,6 +417,13 @@ private struct MoodSegment: Identifiable {
         let colors = sequence.map { MoodState.fromNumeric($0).color }
         return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
     }
+}
+
+private struct MoodBalance: Identifiable {
+    let label: String
+    let count: Int
+    let color: Color
+    var id: String { label }
 }
 
 private struct DayCount: Identifiable {
