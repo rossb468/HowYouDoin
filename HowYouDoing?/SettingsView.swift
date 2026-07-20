@@ -45,6 +45,8 @@ struct InlineSettingsContent: View {
 
     @State private var syncMonitor = CloudSyncMonitor()
     @State private var showAnalytics = false
+    @State private var pendingTheme: AppTheme?
+    @State private var showThemeQuitAlert = false
 
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
@@ -63,6 +65,28 @@ struct InlineSettingsContent: View {
         )
     }
 
+    /// Theme picker binding that defers the change: selecting a new theme stages
+    /// it and shows the quit-to-apply confirmation instead of applying live.
+    private var themeSelection: Binding<String> {
+        Binding(
+            get: { appThemeRaw },
+            set: { newValue in
+                guard newValue != appThemeRaw, let theme = AppTheme(rawValue: newValue) else { return }
+                pendingTheme = theme
+                showThemeQuitAlert = true
+            }
+        )
+    }
+
+    private func applyThemeAndQuit(_ theme: AppTheme) {
+        appThemeRaw = theme.rawValue
+        // Give AppStorage a moment to persist, then terminate so the new theme
+        // is picked up on next launch.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            exit(0)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 18) {
             header
@@ -75,7 +99,7 @@ struct InlineSettingsContent: View {
             }
 
             SettingsSection(title: "Appearance") {
-                SettingsPickerRow(title: "Theme", selection: $appThemeRaw) {
+                SettingsPickerRow(title: "Theme", selection: themeSelection) {
                     ForEach(AppTheme.allCases) { theme in
                         Text(theme.displayName).tag(theme.rawValue)
                     }
@@ -147,6 +171,17 @@ struct InlineSettingsContent: View {
         .foregroundStyle(Color.themeTextOnField)
         .sheet(isPresented: $showAnalytics) {
             AnalyticsView()
+        }
+        .alert("Restart Required", isPresented: $showThemeQuitAlert, presenting: pendingTheme) { theme in
+            Button("Cancel", role: .cancel) {
+                pendingTheme = nil
+            }
+            Button("Aww, ok") {
+                triggerHaptic()
+                applyThemeAndQuit(theme)
+            }
+        } message: { theme in
+            Text("Switching to the \(theme.displayName) theme requires restarting the app. It will close now — reopen it to see the new look.")
         }
     }
 
