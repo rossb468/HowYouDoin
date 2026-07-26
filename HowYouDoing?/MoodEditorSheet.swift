@@ -29,11 +29,13 @@ struct MoodEditorSheet: View {
     // (SwiftData auto-persists on @Model mutations, so we work directly.)
     @State private var selectedMood: MoodState
     @State private var selectedDate: Date
+    @State private var selectedNote: String
 
     init(entry: MoodEntry) {
         self.entry = entry
         _selectedMood = State(initialValue: entry.moodState)
         _selectedDate = State(initialValue: entry.date)
+        _selectedNote = State(initialValue: entry.note)
     }
 
     var body: some View {
@@ -76,6 +78,17 @@ struct MoodEditorSheet: View {
                     Text("Date & Time")
                         .foregroundStyle(Color.themeTextOnBackground)
                 }
+
+                // Journal note
+                Section {
+                    TextField("Add a note…", text: $selectedNote, axis: .vertical)
+                        .lineLimit(3...8)
+                        .foregroundStyle(Color.themeTextOnField)
+                        .listRowBackground(Color.themeGroupedBackground)
+                } header: {
+                    Text("Journal")
+                        .foregroundStyle(Color.themeTextOnBackground)
+                }
             }
             .themedScrollBackground()
             .navigationTitle("Edit Mood")
@@ -90,6 +103,7 @@ struct MoodEditorSheet: View {
                     Button("Save") {
                         entry.moodState = selectedMood
                         entry.date = selectedDate
+                        entry.note = selectedNote.trimmingCharacters(in: .whitespacesAndNewlines)
                         dismiss()
                     }
                 }

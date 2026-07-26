@@ -238,10 +238,10 @@ private struct SettingsSection<Content: View>: View {
             }
             .background(
                 Color.themeGroupedBackground,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(Color.themeFieldBorder, lineWidth: 1)
             )
         }
@@ -374,10 +374,10 @@ private struct InlineRemindersSection: View {
             .frame(height: CGFloat(max(reminders.count, 0)) * 60 + 52)
             .background(
                 Color.themeGroupedBackground,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(Color.themeFieldBorder, lineWidth: 1)
             )
         }

@@ -226,10 +226,13 @@ private let shortMonthFormatter: DateFormatter = {
 final class MoodEntry {
     var moodState: MoodState = MoodState.neutral
     var date: Date = Date()
+    /// Optional journal note attached to this mood entry.
+    var note: String = ""
 
-    init(moodState: MoodState, date: Date = Date()) {
+    init(moodState: MoodState, date: Date = Date(), note: String = "") {
         self.moodState = moodState
         self.date = date
+        self.note = note
     }
 
     /// Formatted time string (e.g. "2:30 PM").

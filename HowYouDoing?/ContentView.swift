@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var isZoomedOut = false
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
+    @State private var editingNoteEntry: MoodEntry?
     @State private var panelHeight: CGFloat = 0
     @State private var collapsedHeight: CGFloat = 0
     @State private var tallHeight: CGFloat = 0
@@ -42,7 +43,8 @@ struct ContentView: View {
     }
 
     private func addMood(_ state: MoodState) {
-        modelContext.insert(MoodEntry(moodState: state))
+        let entry = MoodEntry(moodState: state)
+        modelContext.insert(entry)
         NotificationManager.resetAndReschedule(reminders)
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
 
@@ -325,7 +327,15 @@ struct ContentView: View {
                             MoodEntryRow(
                                 entry: entry,
                                 position: position,
-                                nextColor: nextColor
+                                nextColor: nextColor,
+                                isEditingNote: editingNoteEntry?.id == entry.id,
+                                onNoteDone: { text in
+                                    entry.note = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    editingNoteEntry = nil
+                                },
+                                onNoteCancel: {
+                                    editingNoteEntry = nil
+                                }
                             )
                             .listRowInsets(EdgeInsets(
                                 top: position == .sole || position == .first ? 10 : 0,
@@ -337,6 +347,10 @@ struct ContentView: View {
                             .listRowSeparator(.hidden)
                             .contentShape(Rectangle())
                             .onTapGesture {
+                                editingNoteEntry = entry
+                            }
+                            .onLongPressGesture(minimumDuration: 0.4) {
+                                triggerHaptic(style: .medium)
                                 editingEntry = entry
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {

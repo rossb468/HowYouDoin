@@ -22,6 +22,16 @@ struct MoodEntryRow: View {
     /// The color of the next entry below this one (for blending).
     let nextColor: Color?
 
+    // Inline journal-note editing (used from the history list). Defaulted so
+    // read-only usages (e.g. the CSV preview) don't need to supply them.
+    var isEditingNote: Bool = false
+    var onNoteDone: (String) -> Void = { _ in }
+    var onNoteCancel: () -> Void = {}
+
+    @FocusState private var noteFieldFocused: Bool
+    // Draft kept local so typing only re-renders this row, not the whole list.
+    @State private var draft: String = ""
+
     private let cornerRadius: CGFloat = 20
 
     private var shape: UnevenRoundedRectangle {
@@ -61,6 +71,60 @@ struct MoodEntryRow: View {
     /// Show the day-of-week inline next to the mood text (sole entries only)
     private var showInlineDay: Bool {
         position == .sole
+    }
+
+    private var showNoteArea: Bool {
+        isEditingNote || !entry.note.isEmpty
+    }
+
+    /// Inline note editor while editing; a truncated preview otherwise.
+    @ViewBuilder
+    private var noteArea: some View {
+        if isEditingNote {
+            VStack(alignment: .leading, spacing: 8) {
+                // A vertically-growing field: starts compact and expands (up to
+                // ~6 lines / 140+ characters) as the note is written.
+                TextField("Add a note…", text: $draft, axis: .vertical)
+                    .lineLimit(1...6)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.white)
+                    .tint(.white)
+                    .focused($noteFieldFocused)
+
+                HStack {
+                    Button("Cancel", action: onNoteCancel)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Spacer()
+                    Button("Done") { onNoteDone(draft) }
+                        .buttonStyle(.plain)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                }
+                .font(.system(size: 15))
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+            .onAppear {
+                draft = entry.note
+                noteFieldFocused = true
+            }
+            .onChange(of: isEditingNote) { _, editing in
+                if editing {
+                    draft = entry.note
+                    noteFieldFocused = true
+                }
+            }
+        } else if !entry.note.isEmpty {
+            Text(entry.note)
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.85))
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+        }
     }
 
     var body: some View {
@@ -115,7 +179,10 @@ struct MoodEntryRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.top, showGroupHeader ? 2 : 8)
-            .padding(.bottom, 10)
+            .padding(.bottom, showNoteArea ? 4 : 10)
+
+            // Journal note: inline editor while editing, otherwise a preview.
+            noteArea
 
             // Color blend gradient at the bottom edge for non-last entries
             if let nextColor, position == .first || position == .middle {
