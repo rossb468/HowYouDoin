@@ -357,6 +357,7 @@ private struct InlineRemindersSection: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            .tint(.red)
                         }
                 }
 

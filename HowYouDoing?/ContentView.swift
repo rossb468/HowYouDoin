@@ -359,6 +359,7 @@ struct ContentView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .tint(.red)
                             }
 
                         case .monthDivider(let label, _):
