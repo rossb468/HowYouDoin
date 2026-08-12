@@ -38,14 +38,8 @@ struct AnalyticsView: View {
                     .padding(.top, 60)
                 } else {
                     VStack(spacing: 20) {
-                        summaryCards
-                        weekOverWeekCard
-                        moodBalanceChart
                         moodDistributionChart
                         moodOverTimeChart
-                        dayOfWeekChart
-                        timeOfDayChart
-                        streakCard
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 20)
@@ -63,138 +57,6 @@ struct AnalyticsView: View {
         }
         .sheet(isPresented: $showGraph) {
             MoodGraphSheet(points: moodPoints)
-        }
-    }
-
-    // MARK: - Summary Cards
-
-    private var summaryCards: some View {
-        let total = moodEntries.count
-        let avgScore = moodEntries.map { $0.moodState.numericValue }.reduce(0.0, +) / max(Double(total), 1)
-        let mostCommon = mostCommonMood
-
-        return VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                StatCard(title: "Total Entries", value: "\(total)", icon: "number")
-                StatCard(title: "Avg Mood", value: String(format: "%.1f", avgScore), icon: "gauge.with.needle")
-            }
-            HStack(spacing: 12) {
-                StatCard(title: "Most Common", value: "\(mostCommon.emoji) \(mostCommon.displayString)", icon: "star")
-                StatCard(title: "Days Tracked", value: "\(uniqueDaysCount)", icon: "calendar")
-            }
-        }
-    }
-
-    private var mostCommonMood: MoodState {
-        let counts = Dictionary(grouping: moodEntries, by: \.moodState)
-        return counts.max(by: { $0.value.count < $1.value.count })?.key ?? .neutral
-    }
-
-    private var uniqueDaysCount: Int {
-        let calendar = Calendar.current
-        let days = Set(moodEntries.map { calendar.startOfDay(for: $0.date) })
-        return days.count
-    }
-
-    // MARK: - Week-over-Week Insight
-
-    private var weekOverWeekCard: some View {
-        let calendar = Calendar.current
-        let now = Date()
-        let oneWeekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
-        let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: now)!
-
-        let thisWeek = moodEntries.filter { $0.date > oneWeekAgo }
-        let lastWeek = moodEntries.filter { $0.date > twoWeeksAgo && $0.date <= oneWeekAgo }
-
-        let thisAvg = thisWeek.isEmpty ? 0 : thisWeek.map(\.moodState.numericValue).reduce(0, +) / Double(thisWeek.count)
-        let lastAvg = lastWeek.isEmpty ? 0 : lastWeek.map(\.moodState.numericValue).reduce(0, +) / Double(lastWeek.count)
-        let delta = thisAvg - lastAvg
-
-        let hasComparison = !thisWeek.isEmpty && !lastWeek.isEmpty
-        let arrow: String
-        let arrowColor: Color
-        let summary: String
-        if !hasComparison {
-            arrow = "minus.circle"
-            arrowColor = .secondary
-            summary = thisWeek.isEmpty ? "No entries this week" : "Not enough history yet"
-        } else if abs(delta) < 0.15 {
-            arrow = "equal.circle.fill"
-            arrowColor = .moodBlue
-            summary = "About the same as last week"
-        } else if delta > 0 {
-            arrow = "arrow.up.right.circle.fill"
-            arrowColor = .moodGreen
-            summary = String(format: "Up %.1f vs. last week", delta)
-        } else {
-            arrow = "arrow.down.right.circle.fill"
-            arrowColor = .moodRed
-            summary = String(format: "Down %.1f vs. last week", abs(delta))
-        }
-
-        return ChartCard(title: "This Week vs. Last Week") {
-            HStack(spacing: 14) {
-                Image(systemName: arrow)
-                    .font(.system(size: 32))
-                    .foregroundStyle(arrowColor)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(summary)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.themeTextOnField)
-                    Text("\(thisWeek.count) entr\(thisWeek.count == 1 ? "y" : "ies") this week · \(lastWeek.count) last week")
-                        .font(.caption)
-                        .foregroundStyle(Color.themeTextOnFieldSecondary)
-                }
-
-                Spacer()
-            }
-        }
-    }
-
-    // MARK: - Mood Balance (last 7 days)
-
-    private var moodBalanceChart: some View {
-        let calendar = Calendar.current
-        let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: Date())!
-        let recent = moodEntries.filter { $0.date > sevenDaysAgo }
-
-        let goodCount = recent.filter { $0.moodState == .great || $0.moodState == .good }.count
-        let badCount = recent.filter { $0.moodState == .bad || $0.moodState == .terrible }.count
-
-        let data = [
-            MoodBalance(label: "Good", count: goodCount, color: MoodState.good.color),
-            MoodBalance(label: "Bad", count: badCount, color: MoodState.bad.color)
-        ]
-
-        return ChartCard(title: "Mood Balance (7 Days)") {
-            Chart(data) { item in
-                BarMark(
-                    x: .value("Type", item.label),
-                    y: .value("Count", item.count)
-                )
-                .foregroundStyle(item.color)
-                .cornerRadius(6)
-                .annotation(position: .top) {
-                    Text("\(item.count)")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.themeTextOnFieldSecondary)
-                }
-            }
-            .chartXScale(domain: ["Good", "Bad"])
-            .chartYScale(domain: 0...Double(max(goodCount, badCount, 1)))
-            .chartYAxis {
-                AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine()
-                    AxisValueLabel {
-                        if let v = value.as(Int.self) {
-                            Text("\(v)")
-                        }
-                    }
-                }
-            }
-            .frame(height: 180)
         }
     }
 
@@ -253,132 +115,6 @@ struct AnalyticsView: View {
         }
     }
 
-    // MARK: - Day of Week
-
-    private var dayOfWeekChart: some View {
-        let calendar = Calendar.current
-        let weekStartDay = calendar.firstWeekday
-        let shortSymbols = calendar.shortWeekdaySymbols
-
-        let grouped = Dictionary(grouping: moodEntries) { entry in
-            calendar.component(.weekday, from: entry.date)
-        }
-
-        // Render weekdays in the user's preferred week order.
-        let orderedWeekdays = (0..<7).map { offset -> Int in
-            ((weekStartDay - 1 + offset) % 7) + 1
-        }
-
-        let data: [DayCount] = orderedWeekdays.map { weekday in
-            let entries = grouped[weekday] ?? []
-            let avg = entries.isEmpty ? 0.0 : entries.map { $0.moodState.numericValue }.reduce(0.0, +) / Double(entries.count)
-            return DayCount(day: shortSymbols[weekday - 1], count: entries.count, average: avg, weekday: weekday)
-        }
-
-        return ChartCard(title: "By Day of Week") {
-            Chart(data) { item in
-                BarMark(
-                    x: .value("Day", item.day),
-                    y: .value("Entries", item.count)
-                )
-                .foregroundStyle(item.average > 0 ? MoodState.fromNumericDouble(item.average).color.opacity(0.8) : .gray.opacity(0.3))
-                .cornerRadius(6)
-            }
-            .chartXScale(domain: data.map(\.day))
-            .frame(height: 160)
-        }
-    }
-
-    // MARK: - Time of Day
-
-    private var timeOfDayChart: some View {
-        let calendar = Calendar.current
-
-        let hourBuckets: [HourBucket] = {
-            let grouped = Dictionary(grouping: moodEntries) { entry in
-                calendar.component(.hour, from: entry.date)
-            }
-            return (0..<24).map { hour in
-                let label: String
-                if hour == 0 { label = "12a" }
-                else if hour < 12 { label = "\(hour)a" }
-                else if hour == 12 { label = "12p" }
-                else { label = "\(hour - 12)p" }
-                return HourBucket(hour: hour, label: label, count: grouped[hour]?.count ?? 0)
-            }
-        }()
-
-        return ChartCard(title: "Time of Day") {
-            Chart(hourBuckets) { bucket in
-                BarMark(
-                    x: .value("Hour", bucket.label),
-                    y: .value("Count", bucket.count)
-                )
-                .foregroundStyle(Color.moodBlue.opacity(0.7))
-                .cornerRadius(3)
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: 1)) { value in
-                    if let label = value.as(String.self),
-                       ["12a", "6a", "12p", "6p"].contains(label) {
-                        AxisValueLabel()
-                        AxisGridLine()
-                    }
-                }
-            }
-            .frame(height: 140)
-        }
-    }
-
-    // MARK: - Streak
-
-    private var streakCard: some View {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let uniqueDays = Set(moodEntries.map { calendar.startOfDay(for: $0.date) }).sorted(by: >)
-
-        // Grace day: if the user hasn't logged today yet but logged yesterday,
-        // anchor the streak at yesterday so they don't lose it before midnight.
-        var checkDate = today
-        if let mostRecent = uniqueDays.first,
-           mostRecent != today,
-           mostRecent == calendar.date(byAdding: .day, value: -1, to: today) {
-            checkDate = mostRecent
-        }
-
-        var currentStreak = 0
-        for day in uniqueDays {
-            if day == checkDate {
-                currentStreak += 1
-                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)!
-            } else if day < checkDate {
-                break
-            }
-        }
-
-        var longestStreak = 0
-        var tempStreak = 0
-        var tempCheck: Date?
-        for day in uniqueDays.reversed() {
-            if let check = tempCheck {
-                if day == calendar.date(byAdding: .day, value: 1, to: check) {
-                    tempStreak += 1
-                } else {
-                    longestStreak = max(longestStreak, tempStreak)
-                    tempStreak = 1
-                }
-            } else {
-                tempStreak = 1
-            }
-            tempCheck = day
-        }
-        longestStreak = max(longestStreak, tempStreak)
-
-        return HStack(spacing: 12) {
-            StatCard(title: "Current Streak", value: "\(currentStreak) day\(currentStreak == 1 ? "" : "s")", icon: "flame")
-            StatCard(title: "Longest Streak", value: "\(longestStreak) day\(longestStreak == 1 ? "" : "s")", icon: "trophy")
-        }
-    }
 }
 
 // MARK: - Supporting Types
@@ -416,28 +152,6 @@ private struct MoodSegment: Identifiable {
         let colors = sequence.map { MoodState.fromNumeric($0).color }
         return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
     }
-}
-
-private struct MoodBalance: Identifiable {
-    let label: String
-    let count: Int
-    let color: Color
-    var id: String { label }
-}
-
-private struct DayCount: Identifiable {
-    let day: String
-    let count: Int
-    let average: Double
-    let weekday: Int
-    var id: String { day }
-}
-
-private struct HourBucket: Identifiable {
-    let hour: Int
-    let label: String
-    let count: Int
-    var id: Int { hour }
 }
 
 // MARK: - Mood Timeline Chart
@@ -561,26 +275,6 @@ private struct MoodGraphSheet: View {
 
 // MARK: - Reusable Components
 
-private struct StatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.themeTextOnFieldSecondary)
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.themeTextOnField)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.themeGroupedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-}
-
 private struct ChartCard<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
@@ -629,10 +323,5 @@ extension MoodState {
         case 4:     return .good
         default:    return .great
         }
-    }
-
-    static func fromNumericDouble(_ value: Double) -> MoodState {
-        let clamped = min(max(value, 1), 5)
-        return fromNumeric(Int(clamped.rounded()))
     }
 }
