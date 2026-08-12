@@ -27,9 +27,6 @@ struct ContentView: View {
     @State private var pinchScale: CGFloat = 1.0
     @State private var editingEntry: MoodEntry?
     @State private var editingNoteEntry: MoodEntry?
-    /// The mood card currently being pressed, used to drive a subtle scale-up
-    /// that signals the card is interactive.
-    @State private var pressedEntryID: MoodEntry.ID?
     @State private var panelHeight: CGFloat = 0
     @State private var collapsedHeight: CGFloat = 0
     @State private var tallHeight: CGFloat = 0
@@ -339,8 +336,6 @@ struct ContentView: View {
                                     editingNoteEntry = nil
                                 }
                             )
-                            .scaleEffect(pressedEntryID == entry.id ? 1.03 : 1.0)
-                            .animation(.easeInOut(duration: 0.15), value: pressedEntryID)
                             .listRowInsets(EdgeInsets(
                                 top: position == .sole || position == .first ? 10 : 0,
                                 leading: 16,
@@ -353,12 +348,10 @@ struct ContentView: View {
                             .onTapGesture {
                                 editingNoteEntry = entry
                             }
-                            .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
-                                pressedEntryID = pressing ? entry.id : nil
-                            }, perform: {
+                            .onLongPressGesture(minimumDuration: 0.4) {
                                 triggerHaptic(style: .medium)
                                 editingEntry = entry
-                            })
+                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     deleteMood(entry)
