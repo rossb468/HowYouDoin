@@ -38,11 +38,10 @@ enum TimelineRow: Identifiable {
 
 /// Groups mood entries by day, flattens them into individual rows with
 /// position metadata, and inserts month/week dividers between day groups.
-func buildTimeline(from entries: [MoodEntry], weekStartDay: Int) -> [TimelineRow] {
+func buildTimeline(from entries: [MoodEntry]) -> [TimelineRow] {
     guard !entries.isEmpty else { return [] }
 
-    var calendar = Calendar.current
-    calendar.firstWeekday = weekStartDay
+    let calendar = Calendar.current
 
     // Group entries by calendar day
     let grouped = Dictionary(grouping: entries) { entry in
@@ -118,13 +117,11 @@ struct MonthGridSection: Identifiable {
 /// Builds month grid sections from mood entries, sorted newest-first.
 func buildMonthGrid(
     from entries: [MoodEntry],
-    weekStartDay: Int,
     environment: EnvironmentValues
 ) -> [MonthGridSection] {
     guard !entries.isEmpty else { return [] }
 
-    var calendar = Calendar.current
-    calendar.firstWeekday = weekStartDay
+    let calendar = Calendar.current
 
     // Group entries by (year, month)
     let grouped = Dictionary(grouping: entries) { entry -> DateComponents in

@@ -14,7 +14,6 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
 
-    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("pendingMoodPrompt") private var pendingMoodPrompt = false
     @AppStorage("appTheme") private var appThemeRaw = AppTheme.standard.rawValue
@@ -38,7 +37,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     private var timelineRows: [TimelineRow] {
-        buildTimeline(from: Array(moodEntries), weekStartDay: weekStartDay)
+        buildTimeline(from: Array(moodEntries))
     }
 
     private var reminders: [Reminder] {

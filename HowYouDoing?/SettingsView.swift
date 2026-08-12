@@ -49,7 +49,6 @@ struct InlineSettingsContent: View {
     @State private var showThemeQuitAlert = false
 
     @AppStorage("reminders") private var remindersJSON: String = "[]"
-    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @AppStorage("openAppOnMoodAction") private var openAppOnMoodAction = false
     @AppStorage("appTheme") private var appThemeRaw = AppTheme.standard.rawValue
 
@@ -115,18 +114,6 @@ struct InlineSettingsContent: View {
                     .onChange(of: openAppOnMoodAction) {
                         NotificationManager.registerCategory()
                     }
-            }
-
-            SettingsSection(title: "Calendar") {
-                SettingsPickerRow(title: "Week Starts On", selection: $weekStartDay) {
-                    Text("Sunday").tag(1)
-                    Text("Monday").tag(2)
-                    Text("Tuesday").tag(3)
-                    Text("Wednesday").tag(4)
-                    Text("Thursday").tag(5)
-                    Text("Friday").tag(6)
-                    Text("Saturday").tag(7)
-                }
             }
 
             SettingsSection(title: "Data") {

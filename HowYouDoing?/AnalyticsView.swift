@@ -10,7 +10,6 @@ import Charts
 struct AnalyticsView: View {
     @Query(sort: \MoodEntry.date, order: .reverse) private var moodEntries: [MoodEntry]
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
 
     @State private var showGraph = false
 
@@ -257,8 +256,8 @@ struct AnalyticsView: View {
     // MARK: - Day of Week
 
     private var dayOfWeekChart: some View {
-        var calendar = Calendar.current
-        calendar.firstWeekday = weekStartDay
+        let calendar = Calendar.current
+        let weekStartDay = calendar.firstWeekday
         let shortSymbols = calendar.shortWeekdaySymbols
 
         let grouped = Dictionary(grouping: moodEntries) { entry in

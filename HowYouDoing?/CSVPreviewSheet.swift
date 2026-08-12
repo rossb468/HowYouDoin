@@ -214,7 +214,6 @@ private struct CSVPreviewView: View {
     let onImportAll: () -> Void
     let onImportExcludingDuplicates: () -> Void
 
-    @AppStorage("weekStartDay") private var weekStartDay: Int = 2
     @State private var showDuplicatesOnly = false
 
     private var duplicateCount: Int { duplicateIndices.count }
@@ -231,7 +230,7 @@ private struct CSVPreviewView: View {
     }
 
     private var timelineRows: [TimelineRow] {
-        buildTimeline(from: displayedEntries, weekStartDay: weekStartDay)
+        buildTimeline(from: displayedEntries)
     }
 
     var body: some View {
