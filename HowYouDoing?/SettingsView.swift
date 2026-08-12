@@ -58,10 +58,12 @@ struct InlineSettingsContent: View {
     @AppStorage("debug_alwaysShowWelcome") private var debugAlwaysShowWelcome = false
     #endif
 
+    /// Reminders are kept sorted earliest-to-latest on both read and write so
+    /// the list stays in time order after any add or edit.
     private var reminders: Binding<[Reminder]> {
         Binding(
-            get: { [Reminder].fromJSON(remindersJSON) },
-            set: { remindersJSON = $0.jsonString }
+            get: { [Reminder].fromJSON(remindersJSON).sortedByTime() },
+            set: { remindersJSON = $0.sortedByTime().jsonString }
         )
     }
 

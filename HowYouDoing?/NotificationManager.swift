@@ -52,6 +52,11 @@ extension Array where Element == Reminder {
         guard let data = string.data(using: .utf8) else { return [] }
         return (try? JSONDecoder().decode([Reminder].self, from: data)) ?? []
     }
+
+    /// Reminders ordered by time of day, earliest first.
+    func sortedByTime() -> [Reminder] {
+        sorted { ($0.hour * 60 + $0.minute) < ($1.hour * 60 + $1.minute) }
+    }
 }
 
 // MARK: - Notification Manager
