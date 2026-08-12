@@ -20,7 +20,7 @@ struct AnalyticsView: View {
     /// One point per mood entry, ordered oldest-first, for the mood-over-time graph.
     private var moodPoints: [MoodPoint] {
         sortedEntries.map {
-            MoodPoint(id: $0.id, date: $0.date, value: $0.moodState.numericValue, mood: $0.moodState)
+            MoodPoint(id: $0.id, date: $0.date, value: $0.moodState.numericValue, mood: $0.moodState, note: $0.note)
         }
     }
 
@@ -130,6 +130,7 @@ private struct MoodPoint: Identifiable {
     let date: Date
     let value: Double
     let mood: MoodState
+    let note: String
 }
 
 private struct MoodSegment: Identifiable {
@@ -162,6 +163,17 @@ private struct MoodSegment: Identifiable {
 private struct MoodTimelineChart: View {
     let points: [MoodPoint]
     let visibleDays: Int
+
+    /// The date the user has tapped on, used to surface that entry's note.
+    @State private var selectedDate: Date?
+
+    /// The point nearest the tapped date, if any.
+    private var selectedPoint: MoodPoint? {
+        guard let selectedDate else { return nil }
+        return points.min {
+            abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate))
+        }
+    }
 
     /// Visible window in seconds, clamped to the data's span so short histories
     /// fill the width instead of being squeezed against the leading edge.
@@ -213,7 +225,30 @@ private struct MoodTimelineChart: View {
                     y: .value("Mood", point.value)
                 )
                 .foregroundStyle(point.mood.color)
-                .symbolSize(50)
+                // Entries with a note are drawn larger and carry a small badge
+                // so noted days stand out at a glance.
+                .symbolSize(point.note.isEmpty ? 50 : 110)
+                .annotation(position: .top, spacing: 2) {
+                    if !point.note.isEmpty {
+                        Image(systemName: "text.bubble.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(point.mood.color)
+                    }
+                }
+            }
+
+            // Tapping a point drops a rule line and a callout with its note.
+            if let selectedPoint {
+                RuleMark(x: .value("Selected", selectedPoint.date))
+                    .foregroundStyle(Color.themeTextOnFieldSecondary.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .annotation(
+                        position: .top,
+                        alignment: .center,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
+                    ) {
+                        calloutView(for: selectedPoint)
+                    }
             }
         }
         // Pad the vertical scale beyond 1...5 so the top and bottom lines aren't
@@ -231,14 +266,49 @@ private struct MoodTimelineChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day, count: strideDays)) { _ in
+            // A faint gridline for every day so each day is marked...
+            AxisMarks(values: .stride(by: .day, count: 1)) { _ in
                 AxisGridLine()
+            }
+            // ...with dated labels at a readable interval.
+            AxisMarks(values: .stride(by: .day, count: strideDays)) { _ in
+                AxisTick()
                 AxisValueLabel(format: .dateTime.month(.abbreviated).day())
             }
         }
+        .chartXSelection(value: $selectedDate)
         .chartScrollableAxes(.horizontal)
         .chartXVisibleDomain(length: visibleLength)
         .chartScrollPosition(initialX: initialScrollX)
+    }
+
+    /// A small bubble shown above the selected entry: its date, mood, and note.
+    @ViewBuilder
+    private func calloutView(for point: MoodPoint) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(point.mood.emoji)
+                    .font(.system(size: 14))
+                Text(point.date.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.themeTextOnFieldSecondary)
+            }
+            if !point.note.isEmpty {
+                Text(point.note)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.themeTextOnField)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(4)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: 180, alignment: .leading)
+        .background(
+            Color.themeGroupedBackground,
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
     }
 }
 
