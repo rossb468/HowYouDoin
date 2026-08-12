@@ -50,7 +50,6 @@ struct InlineSettingsContent: View {
 
     @AppStorage("reminders") private var remindersJSON: String = "[]"
     @AppStorage("weekStartDay") private var weekStartDay: Int = 2
-    @AppStorage("encouragementFrequency") private var encouragementFrequencyRaw: String = EncouragementFrequency.onceADay.rawValue
     @AppStorage("openAppOnMoodAction") private var openAppOnMoodAction = false
     @AppStorage("appTheme") private var appThemeRaw = AppTheme.standard.rawValue
 
@@ -127,14 +126,6 @@ struct InlineSettingsContent: View {
                     Text("Thursday").tag(5)
                     Text("Friday").tag(6)
                     Text("Saturday").tag(7)
-                }
-            }
-
-            SettingsSection(title: "Encouragement") {
-                SettingsPickerRow(title: "Check-in Prompts", selection: $encouragementFrequencyRaw) {
-                    ForEach(EncouragementFrequency.allCases, id: \.rawValue) { freq in
-                        Text(freq.displayString).tag(freq.rawValue)
-                    }
                 }
             }
 
