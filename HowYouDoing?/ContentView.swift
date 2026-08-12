@@ -340,7 +340,7 @@ struct ContentView: View {
                                 }
                             )
                             .scaleEffect(pressedEntryID == entry.id ? 1.03 : 1.0)
-                            .animation(.easeOut(duration: 0.08), value: pressedEntryID)
+                            .animation(.easeInOut(duration: 0.15), value: pressedEntryID)
                             .listRowInsets(EdgeInsets(
                                 top: position == .sole || position == .first ? 10 : 0,
                                 leading: 16,

@@ -37,6 +37,13 @@ struct HowYouDoing_App: App {
     private let notificationDelegate: NotificationDelegate
 
     init() {
+        // Deliver touches to scroll-view content immediately instead of waiting
+        // to disambiguate a scroll. Without this, List rows (backed by a
+        // UIScrollView) don't receive a press until ~0.15s in, which delays the
+        // start of the mood tile's press animation. Scrolling still works — the
+        // scroll takes over as soon as the finger moves.
+        UIScrollView.appearance().delaysContentTouches = false
+
         // Ensure the Application Support directory exists before SwiftData
         // attempts to create its store file, avoiding a slow recovery path
         // on first launch on physical devices.
